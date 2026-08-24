@@ -17,7 +17,7 @@ from nonebot.adapters.onebot.v11 import (
     MessageEvent,
     MessageSegment,
 )
-from nonebot.adapters.onebot.v11.permission import PRIVATE
+from nonebot.adapters.onebot.v11.permission import GROUP, PRIVATE
 from nonebot.params import CommandArg, RegexGroup
 from nonebot.permission import SUPERUSER
 from nonebot.plugin import PluginMetadata
@@ -29,14 +29,17 @@ from zhenxun.configs.utils import PluginExtraData
 from zhenxun.utils.enum import PluginType
 
 from ..plugin_utils.auth_utils import gold_cost
+from ..plugin_utils.download_utils import DownloadError
+from .data_source.damage import get_role_dmg
 from .data_source.damage.recommend import DamageTargetError
 from .data_source.draw_artifact_card import draw_artifact_card
+from .data_source.draw_role_rank_card import draw_role_rank_card
 from .data_source.draw_recommend_card import (
     gen_artifact_adapt,
     gen_artifact_recommend,
     gen_suit_recommend,
 )
-from .data_source.draw_role_card import draw_role_card
+from .data_source.draw_role_card import MissingIconSourceError, draw_role_card
 from .data_source.draw_update_card import draw_role_pic
 from .utils.card_utils import (
     PlayerInfo,
@@ -50,6 +53,7 @@ from .utils.card_utils import (
 )
 from .utils.image_utils import image_build, load_image
 from .utils.json_utils import get_message_at
+from .utils.rank_utils import collect_role_rank_entries
 
 __plugin_meta__ = PluginMetadata(
     name="原神角色面板",
@@ -71,12 +75,14 @@ __plugin_meta__ = PluginMetadata(
         原神角色排行
         最强XX (例:最强甘雨)
         最菜XX
+        XX评分排行 (例:胡桃评分排行)
+        XX伤害排行序号 (例:胡桃伤害排行5)
         圣遗物榜单
         群圣遗物榜单
     """.strip(),
     extra=PluginExtraData(
         author="CRAZYSHIMAKAZE",
-        version="4.3.1",
+        version="4.3.2",
         plugin_type=PluginType.NORMAL,
     ).to_dict(),
 )
@@ -98,6 +104,7 @@ driver: Driver = nonebot.get_driver()
 get_card = on_regex(r"(.*)面板(.*)", priority=4, block=False)
 group_best = on_regex(r"^(最强|群最强)(.*)", priority=4)
 group_worst = on_regex(r"^(最菜|群最菜)(.*)", priority=4)
+role_rank = on_regex(r"^(.+?)(评分|伤害)(?:排行|榜单)(\d*)$", permission=GROUP, priority=4, block=True)
 artifact_adapt = on_regex("(.*?)([花羽沙杯冠])适配", priority=4)
 artifact_recommend = on_regex(r"(.*?)([花羽沙杯冠套])推荐(\d*)$", priority=4)
 artifact_list = on_command("圣遗物榜单", aliases={"圣遗物排行"}, priority=4, block=True)
@@ -635,6 +642,11 @@ async def test(bot: Bot, event: MessageEvent, args: tuple[str, ...] = RegexGroup
             )
     except DamageTargetError as error:
         return await artifact_recommend.finish(str(error), at_sender=True)
+    except (DownloadError, MissingIconSourceError):
+        return await artifact_recommend.finish(
+            "圣遗物图标资源获取失败，请更新原神面板后重试。",
+            at_sender=True,
+        )
     if not img:
         await artifact_recommend.finish(  # MessageSegment.reply(event.message_id) +
             "未找到符合条件的圣遗物推荐!"
@@ -668,6 +680,70 @@ async def _(bot: Bot, event: MessageEvent):
         await group_artifact_list.send(  # MessageSegment.reply(event.message_id) +
             img
         )
+
+
+@role_rank.handle()
+@gold_cost(coin=1, percent=1)
+async def _(
+    bot: Bot,
+    event: GroupMessageEvent,
+    args: tuple[str, ...] = RegexGroup(),
+):
+    role_name = get_role_name(args[0].strip())
+    metric = args[1]
+    damage_index_text = args[2]
+    if not role_name:
+        return await role_rank.finish()
+    if metric == "伤害" and (
+        not damage_index_text or int(damage_index_text) < 1
+    ):
+        return await role_rank.finish(
+            f"请指定{role_name}伤害面板中的项目序号，例如："
+            f"{role_name}伤害排行5",
+            at_sender=False,
+        )
+    if metric == "评分" and damage_index_text:
+        return await role_rank.finish(
+            f"评分排行不需要项目序号，请发送：{role_name}评分排行",
+            at_sender=False,
+        )
+    damage_index = int(damage_index_text) if damage_index_text else None
+    try:
+        members = await bot.get_group_member_list(group_id=event.group_id)
+    except Exception:
+        return await role_rank.finish("获取群成员列表失败，请稍后重试。", at_sender=False)
+
+    uid_map = load_json(f"{player_info_path}/qq2uid.json")
+    entries = collect_role_rank_entries(
+        members,
+        uid_map,
+        player_info_path,
+        role_name,
+        metric,
+        damage_calculator=get_role_dmg,
+        damage_index=damage_index,
+    )
+    if not entries:
+        if metric == "伤害":
+            return await role_rank.finish(
+                f"本群暂无可用于{role_name}第{damage_index}个伤害项目的排行数据，"
+                "请确认序号未超出伤害面板范围，并让群成员更新原神面板。",
+                at_sender=False,
+            )
+        return await role_rank.finish(
+            f"本群暂无可用于{role_name}{metric}排行的数据，"
+            "请群成员先绑定 UID 并更新原神面板。",
+            at_sender=False,
+        )
+    image = await draw_role_rank_card(
+        f"{role_name}{metric}排行{damage_index or ''}",
+        role_name,
+        event.group_id,
+        entries,
+        __plugin_version__,
+        metric,
+    )
+    await role_rank.send(image_build(image, quality=100), at_sender=False)
 
 
 @artifact_list.handle()
@@ -826,7 +902,19 @@ async def gen(event: MessageEvent, uid, role_name, at_user):
     roles_list = player_info.get_roles_list()
     await check_role_avaliable(role_name, roles_list, event)
     role_data = player_info.get_roles_info(role_name)
-    img, score = await draw_role_card(uid, role_data, player_info, __plugin_version__, only_cal=False)
+    try:
+        img, score = await draw_role_card(
+            uid,
+            role_data,
+            player_info,
+            __plugin_version__,
+            only_cal=False,
+        )
+    except (DownloadError, MissingIconSourceError):
+        return await get_card.finish(
+            "面板图标资源获取失败，请更新原神面板后重试。",
+            at_sender=False,
+        )
     msg = "" if at_user else check_role(role_name, event, img, score)
     img = image_build(img=img, quality=100, mode="RGB")
     await get_card.send(  # MessageSegment.reply(event.message_id) +

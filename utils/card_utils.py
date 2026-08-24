@@ -84,6 +84,36 @@ for item in role_ori.keys():
             role_score[item][convert.get(info)] = role_ori.get(item).get(info)
 
 
+def backfill_artifact_icon_sources(
+    data: dict,
+    enka_icons: dict[str, str] | None = None,
+) -> int:
+    """Backfill MYS icon URLs into legacy artifact-cache entries."""
+    if enka_icons is None:
+        enka_icons = {name: icon for icon, name in artifact_list["Name"].items()}
+    icon_sources = {
+        artifact.get("图标", ""): artifact.get("图标链接", "")
+        for role in data.get("角色", {}).values()
+        for artifact in role.get("圣遗物", [])
+        if artifact.get("图标") and artifact.get("图标链接")
+    }
+    updated = 0
+    for artifacts in data.get("圣遗物列表", []):
+        for artifact in artifacts:
+            if artifact.get("图标链接"):
+                continue
+            if source := icon_sources.get(artifact.get("图标", "")):
+                artifact["图标链接"] = source
+                updated += 1
+            elif (
+                not artifact.get("图标", "").startswith("UI_")
+                and (icon := enka_icons.get(artifact.get("名称", "")))
+            ):
+                artifact["图标链接"] = f"https://enka.network/ui/{icon}.png"
+                updated += 1
+    return updated
+
+
 def resolve_traveler_role(skill_level_map: dict) -> str:
     skill_ids = set(skill_level_map)
     for role_name, metadata in role_info_json.items():
@@ -106,6 +136,7 @@ class PlayerInfo:
             self.data["大毕业圣遗物"] = 0
         if "圣遗物列表" not in self.data:
             self.data["圣遗物列表"] = [[], [], [], [], []]
+        backfill_artifact_icon_sources(self.data)
 
     def set_player(self, data: dict):
         self.player_info["昵称"] = data.get("nickname", "unknown")

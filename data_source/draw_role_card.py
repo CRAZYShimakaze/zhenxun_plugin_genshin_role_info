@@ -20,8 +20,19 @@ from .damage.render import draw_dmg_pic
 weapon_url = "https://enka.network/ui/{}.png"
 
 
+class MissingIconSourceError(ValueError):
+    pass
+
+
 def get_icon_url(icon: str, source: str, fallback: str) -> str:
-    return source or fallback.format(icon)
+    if source:
+        return source
+    is_mihoyo_hash = len(icon) == 32 and all(
+        character in "0123456789abcdefABCDEF" for character in icon
+    )
+    if is_mihoyo_hash:
+        raise MissingIconSourceError(f"图标 {icon} 缺少原始链接")
+    return fallback.format(icon)
 
 
 artifact_url = "https://enka.network/ui/{}.png"

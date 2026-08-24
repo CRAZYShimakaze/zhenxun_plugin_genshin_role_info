@@ -93,6 +93,7 @@ def sort_recommend(artifact, position):
         artifact_pk_info = {"角色": role_name}
         artifact_pk_info["星级"] = artifact["星级"]
         artifact_pk_info["图标"] = artifact["图标"]
+        artifact_pk_info["图标链接"] = artifact.get("图标链接", "")
         artifact_pk_info["名称"] = role_name_full
         artifact_pk_info["评分"] = grade
         artifact_pk_info["评级"] = artifact_score
@@ -141,6 +142,7 @@ def _artifact_card_info(data, artifact, ori_artifact, role_name, pos):
     )
     artifact_pk_info["星级"] = artifact["星级"]
     artifact_pk_info["图标"] = artifact["图标"]
+    artifact_pk_info["图标链接"] = artifact.get("图标链接", "")
     artifact_pk_info["名称"] = artifact["名称"]
     artifact_pk_info["评分"] = grade
     artifact_pk_info["评级"] = artifact_score
