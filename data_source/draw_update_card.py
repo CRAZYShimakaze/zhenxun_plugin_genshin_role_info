@@ -8,7 +8,13 @@ from ..utils.card_utils import (
     other_path,
     weapon_path,
 )
-from ..utils.image_utils import draw_center_text, get_img, image_build, load_image
+from ..utils.image_utils import (
+    draw_center_text,
+    draw_center_text_with_safe_advance,
+    get_img,
+    image_build,
+    load_image,
+)
 from ..utils.json_utils import load_json
 from .draw_role_card import get_icon_url, weapon_url
 
@@ -124,7 +130,7 @@ async def draw_role_pic(uid: str, role_dict: dict | list, player_info):
         )
 
         # 角色卡内部角色名
-        draw_center_text(
+        draw_center_text_with_safe_advance(
             card_bg_draw,
             f"{role}Lv.{data['等级']}",
             36 * multiple,

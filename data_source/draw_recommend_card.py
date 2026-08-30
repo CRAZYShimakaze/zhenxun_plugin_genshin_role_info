@@ -1,7 +1,13 @@
 import asyncio
 import copy
 
-from ..utils.artifact_utils import check_effective, get_artifact_score, get_effective, get_miao_score
+from ..utils.artifact_utils import (
+    check_effective,
+    get_artifact_score,
+    get_effective,
+    get_miao_score,
+    get_upgrade_count_mark,
+)
 from ..utils.card_utils import json_path, role_score
 from ..utils.image_utils import image_build
 from ..utils.json_utils import load_json
@@ -102,9 +108,7 @@ def sort_recommend(artifact, position):
         artifact_pk_info["副属性"] = []
         for j in range(len(artifact["词条"])):
             text = artifact["词条"][j]["属性名"].replace("百分比", "")
-            up_num = ""
-            if mark[j] != 0:
-                up_num = "¹" if mark[j] == 1 else "²" if mark[j] == 2 else "³" if mark[j] == 3 else "⁴" if mark[j] == 4 else "⁵"
+            up_num = get_upgrade_count_mark(mark[j])
             if artifact["词条"][j]["属性名"] not in ["攻击力", "防御力", "生命值", "元素精通"]:
                 num = "+" + str(artifact["词条"][j]["属性值"]) + "%"
             else:
@@ -154,10 +158,7 @@ def _artifact_card_info(data, artifact, ori_artifact, role_name, pos):
     artifact_pk_info["副属性"] = []
     for index, affix in enumerate(artifact["词条"]):
         text = affix["属性名"].replace("百分比", "")
-        up_num = {1: "¹", 2: "²", 3: "³", 4: "⁴", 5: "⁵"}.get(
-            mark[index],
-            "",
-        )
+        up_num = get_upgrade_count_mark(mark[index])
         num = "+" + str(affix["属性值"])
         if affix["属性名"] not in ["攻击力", "防御力", "生命值", "元素精通"]:
             num += "%"

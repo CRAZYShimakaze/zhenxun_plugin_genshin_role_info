@@ -3,7 +3,13 @@ from __future__ import annotations
 from PIL import Image, ImageDraw
 
 from ..utils.card_utils import bg_path, get_font, other_path, weapon_path
-from ..utils.image_utils import draw_center_text, draw_right_text, get_img, load_image
+from ..utils.image_utils import (
+    draw_center_text,
+    draw_center_text_with_safe_advance,
+    draw_right_text,
+    get_img,
+    load_image,
+)
 from ..utils.rank_utils import RankEntry
 from .draw_artifact_card import (
     artifact_url,
@@ -196,7 +202,9 @@ async def draw_role_rank_card(
                 _fit_font(draw, row_value, 155, 25, minimum=16),
             )
 
-    draw_center_text(draw, title, 0, width, 5, "white", get_font(96, "优设标题黑.ttf"))
+    draw_center_text_with_safe_advance(
+        draw, title, 0, width, 5, "white", get_font(96, "优设标题黑.ttf")
+    )
     if metric == "伤害":
         damage_titles = list(
             dict.fromkeys(

@@ -34,9 +34,66 @@ def draw_center_text(draw, text: str, left_width: int, right_width: int, height:
     :param fill: 字体颜色
     :param font: 字体
     """
+    advances = [draw.textlength(character, font=font) for character in text]
+    if any(advance <= 0 for advance in advances):
+        draw_center_text_with_safe_advance(
+            draw, text, left_width, right_width, height, fill, font
+        )
+        return
+
     text_length = draw.textlength(text, font=font)
     draw.text(
         (left_width + (right_width - left_width - text_length) / 2, height),
+        text,
+        fill=fill,
+        font=font,
+    )
+
+
+def draw_text_with_safe_advance(draw, xy, text, *, fill, font):
+    advances = [draw.textlength(character, font=font) for character in text]
+    if all(advance > 0 for advance in advances):
+        draw.text(xy, text, fill=fill, font=font)
+        return
+
+    positive_advances = [advance for advance in advances if advance > 0]
+    fallback_advance = max(positive_advances, default=0)
+    x, y = xy
+    for character, advance in zip(text, advances):
+        draw.text((x, y), character, fill=fill, font=font)
+        if advance <= 0:
+            if fallback_advance <= 0:
+                left, _, right, _ = draw.textbbox((0, 0), character, font=font)
+                fallback_advance = right - left
+            advance = fallback_advance
+        x += advance
+
+
+def draw_center_text_with_safe_advance(
+    draw,
+    text: str,
+    left_width: int,
+    right_width: int,
+    height: int,
+    fill: str,
+    font,
+):
+    advances = [draw.textlength(character, font=font) for character in text]
+    if all(advance > 0 for advance in advances):
+        draw_center_text(draw, text, left_width, right_width, height, fill, font)
+        return
+
+    positive_advances = [advance for advance in advances if advance > 0]
+    fallback_advance = max(positive_advances, default=0)
+    text_width = sum(advances) + sum(
+        fallback_advance for advance in advances if advance <= 0
+    )
+    draw_text_with_safe_advance(
+        draw,
+        (
+            left_width + (right_width - left_width - text_width) / 2,
+            height,
+        ),
         text,
         fill=fill,
         font=font,

@@ -101,6 +101,8 @@ def get_damage_target(data: dict, damage_index: int) -> tuple[str, float]:
     title, values = rows[damage_index - 1]
     # Miao returns expected damage first even though the rendered table shows
     # the critical column on the left.
+    if getattr(values, "is_text", False):
+        raise DamageTargetError(f"第 {damage_index} 项“{title}”不是数值伤害")
     raw_value = values[0]
     try:
         value = float(str(raw_value).rstrip("%"))

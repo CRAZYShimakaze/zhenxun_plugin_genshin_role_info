@@ -240,13 +240,20 @@ def _convert_artifact(data: dict, property_map: dict) -> dict:
             "属性值": _number(main.get("value")),
         },
         "词条": [
-            {
-                "属性名": _property_name(item.get("property_type", 0), property_map),
-                "属性值": _number(item.get("value")),
-            }
+            _convert_artifact_substat(item, property_map)
             for item in data.get("sub_property_list", [])
         ],
     }
+
+
+def _convert_artifact_substat(data: dict, property_map: dict) -> dict:
+    substat = {
+        "属性名": _property_name(data.get("property_type", 0), property_map),
+        "属性值": _number(data.get("value")),
+    }
+    if data.get("times") is not None:
+        substat["强化次数"] = max(0, min(5, int(data["times"])))
+    return substat
 
 
 def convert_character(data: dict, property_map: dict) -> dict:

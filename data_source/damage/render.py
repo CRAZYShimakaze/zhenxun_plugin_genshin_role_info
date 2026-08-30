@@ -33,6 +33,20 @@ def _center_text(draw, text, left, right, top, fill, font) -> None:
     draw.text(((left + right - width) / 2, top), str(text), fill=fill, font=font)
 
 
+def _is_text_value(values) -> bool:
+    """Match Miao's text rows while accepting legacy untyped tuples."""
+    if getattr(values, "is_text", False):
+        return True
+    if len(values) != 1:
+        return False
+    value = str(values[0]).replace(",", "").strip()
+    try:
+        float(value)
+    except (TypeError, ValueError):
+        return True
+    return False
+
+
 def _fit_font(
     draw,
     text,
@@ -139,7 +153,7 @@ def draw_dmg_pic(dmg: dict[str, tuple[str, ...]]) -> Image.Image:
     value_split = int(label_width + value_width)
     damage_bottom = 60 + damage_height
     draw.line((label_width, 0, label_width, damage_bottom), (255, 255, 255, 75), 2)
-    draw.line((value_split, 0, value_split, damage_bottom), (255, 255, 255, 75), 2)
+    draw.line((value_split, 0, value_split, 60), (255, 255, 255, 75), 2)
     for row in range(len(damage_items) + 1):
         top = 60 + row * 60
         draw.line((0, top, IMAGE_WIDTH, top), (255, 255, 255, 75), 2)
@@ -166,6 +180,16 @@ def draw_dmg_pic(dmg: dict[str, tuple[str, ...]]) -> Image.Image:
             description_font,
         )
         if len(values) == 1:
+            value_font = (
+                _fit_font(
+                    draw,
+                    values[0],
+                    "hywh.ttf",
+                    IMAGE_WIDTH - label_width - 24,
+                )
+                if _is_text_value(values)
+                else _font(30, "number.ttf")
+            )
             _center_text(
                 draw,
                 values[0],
@@ -173,9 +197,14 @@ def draw_dmg_pic(dmg: dict[str, tuple[str, ...]]) -> Image.Image:
                 IMAGE_WIDTH,
                 top + 16,
                 "white",
-                _font(30, "number.ttf"),
+                value_font,
             )
             continue
+        draw.line(
+            (value_split, top, value_split, top + 60),
+            (255, 255, 255, 75),
+            2,
+        )
         _center_text(
             draw,
             values[1],

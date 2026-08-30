@@ -1,4 +1,5 @@
 import copy
+import math
 import os.path
 
 from PIL import Image, ImageDraw
@@ -10,9 +11,16 @@ from ..utils.artifact_utils import (
     get_effective,
     get_mark_class,
     get_miao_score,
+    get_upgrade_count_mark,
 )
 from ..utils.card_utils import avatar_path, bg_path, char_pic_path, get_font, json_path, other_path, outline_path, regoin_path, reli_path, skill_path, talent_path, weapon_path
-from ..utils.image_utils import draw_center_text, draw_right_text, get_img, load_image
+from ..utils.image_utils import (
+    draw_center_text,
+    draw_right_text,
+    draw_text_with_safe_advance,
+    get_img,
+    load_image,
+)
 from ..utils.json_utils import load_json
 from .damage import get_role_dmg
 from .damage.render import draw_dmg_pic
@@ -85,7 +93,11 @@ async def draw_role_card(uid, data, player_info, plugin_version, only_cal, title
         bg.alpha_composite(base_mask, (0, 0))
         # if role_info_json[data["名称"]]["区域"] != '其它':
         if os.path.exists(f"{regoin_path}/{role_info_json[data['名称']]['区域']}.png"):
-            region_icon = load_image(path=f"{regoin_path}/{role_info_json[data['名称']]['区域']}.png", size=(130, 130))
+            region_icon = load_image(
+                path=f"{regoin_path}/{role_info_json[data['名称']]['区域']}.png",
+                size=(130, 130),
+                mode="RGBA",
+            )
             bg.alpha_composite(region_icon, (0, 4))
         
         element_icon = load_image(f"{regoin_path}/{data['元素']}.png")
@@ -97,8 +109,20 @@ async def draw_role_card(uid, data, player_info, plugin_version, only_cal, title
         if not title:
             bg_draw.text((131, 100), f"UID{uid}", fill="white", font=get_font(48, "number.ttf"))
         else:
-            bg_draw.text((131, 80), title, fill="white", font=get_font(72, "优设标题黑.ttf"))
-        bg_draw.text((134, 150), data["名称"], fill="white", font=get_font(72, "优设标题黑.ttf"))
+            draw_text_with_safe_advance(
+                bg_draw,
+                (131, 80),
+                title,
+                fill="white",
+                font=get_font(72, "优设标题黑.ttf"),
+            )
+        draw_text_with_safe_advance(
+            bg_draw,
+            (134, 150),
+            data["名称"],
+            fill="white",
+            font=get_font(72, "优设标题黑.ttf"),
+        )
 
         level_mask = load_image(path=f"{other_path}/等级遮罩.png")
         bg.alpha_composite(level_mask, (298 + 60 * (len(data["名称"]) - 2), 172))
@@ -264,9 +288,8 @@ async def draw_role_card(uid, data, player_info, plugin_version, only_cal, title
 
         for j in range(len(artifact["词条"])):
             text = artifact["词条"][j]["属性名"].replace("百分比", "")
-            up_num = ""
-            if mark[j] != 0:
-                up_num = "¹" if mark[j] == 1 else "²" if mark[j] == 2 else "³" if mark[j] == 3 else "⁴" if mark[j] == 4 else "⁵"
+            up_num = get_upgrade_count_mark(mark[j])
+            if up_num:
                 x_offset = 25 * len(text)
                 bg_draw.text(
                     (94 + offset_x + 317 * i + x_offset, 1163 + 50 * j - 5 + offset_y), up_num, fill="white" if check_effective(artifact["词条"][j]["属性名"], effective) else "#afafaf", font=get_font(25, "tahomabd.ttf")
@@ -358,7 +381,24 @@ async def draw_role_card(uid, data, player_info, plugin_version, only_cal, title
             weight_name = "通用"
         else:
             weight_name = weight_name.split("-")[-1]
-        draw_center_text(bg_draw, f"{weight_name}:{effect}", 0, 1080, bg.size[1] - 85, "#afafaf", get_font(30))
+        weight_text = f"{weight_name}:{effect}"
+        weight_font_size = 30
+        weight_font = get_font(weight_font_size)
+        max_weight_width = 1020
+        weight_width = bg_draw.textlength(weight_text, font=weight_font)
+        if weight_width > max_weight_width:
+            weight_font_size = max(
+                1, math.floor(weight_font_size * max_weight_width / weight_width)
+            )
+            weight_font = get_font(weight_font_size)
+            while (
+                weight_font_size > 1
+                and bg_draw.textlength(weight_text, font=weight_font) > max_weight_width
+            ):
+                weight_font_size -= 1
+                weight_font = get_font(weight_font_size)
+
+        draw_center_text(bg_draw, weight_text, 0, 1080, bg.size[1] - 85, "#afafaf", weight_font)
         date = data["更新时间"]  # re.sub("\d{4}-", "", data["更新时间"])
         draw_center_text(bg_draw, f"Updated on {date[:-3]} | v{plugin_version}", 0, 1080, bg.size[1] - 50, "#ffffff", get_font(36, "优设标题黑.ttf"))
     return bg, str(total_all) + no_list if no_list == "*" else total_all

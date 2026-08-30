@@ -12,6 +12,7 @@ from ..utils.card_utils import (
 )
 from ..utils.image_utils import (
     draw_center_text,
+    draw_center_text_with_safe_advance,
     draw_right_text,
     get_img,
     image_build,
@@ -217,7 +218,7 @@ async def draw_artifact_card(
                 fill=artifact["副属性"][j]["颜色"],
                 font=get_font(25, "number.ttf"),
             )
-    draw_center_text(
+    draw_center_text_with_safe_advance(
         bg_draw, f"{title}", 0, wid, 5, "#ffffff", get_font(96, "优设标题黑.ttf")
     )
     draw_center_text(

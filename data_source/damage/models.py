@@ -1,7 +1,21 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
+
+
+class DamageValues(tuple):
+    """Rendered values with the Miao result type preserved for the card UI."""
+
+    def __new__(
+        cls,
+        values: Iterable[str] = (),
+        *,
+        is_text: bool = False,
+    ):
+        instance = super().__new__(cls, values)
+        instance.is_text = is_text
+        return instance
 
 
 @dataclass
@@ -95,7 +109,7 @@ class DamageResult:
 
     def display(self) -> tuple[str, ...]:
         if self.text is not None:
-            return (self.text,)
+            return DamageValues((self.text,), is_text=True)
         if self.crit is None:
             return (str(int(self.avg)),)
         return str(int(self.avg)), str(int(self.crit))

@@ -25,6 +25,9 @@ def select_damage_metric(
     if damage_index < 1 or damage_index > len(rows):
         return None
     title, values = rows[damage_index - 1]
+    # Miao ``type: text`` rows are explanatory output, not damage metrics.
+    if getattr(values, "is_text", False):
+        return None
     if not values or (expected := _number(values[0])) is None:
         return None
     critical = _number(values[1]) if len(values) > 1 else None

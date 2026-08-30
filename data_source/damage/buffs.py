@@ -57,6 +57,13 @@ def _apply_buff(
     data = dict(raw.get("data") or {})
     refine = max(0, int(context.weapon.get("精炼等级", 1)) - 1)
     multiplier = raw.get("buffCount", 1) or 1
+    for key, value in list(data.items()):
+        if not isinstance(value, list):
+            continue
+        if not value:
+            data.pop(key)
+            continue
+        data[key] = float(value[min(refine, len(value) - 1)]) * multiplier
     for key, values in (raw.get("refine") or {}).items():
         if isinstance(values, list):
             if not values:

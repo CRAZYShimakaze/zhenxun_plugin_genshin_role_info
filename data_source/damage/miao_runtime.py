@@ -663,6 +663,11 @@ def _translate_expression(source: str) -> str:
     )
     source = re.sub(r"\bFormat\.percent\b", "_format_percent", source)
     source = re.sub(
+        r"\bgetHunterAimStacks\(\{\s*cons\s*\}\)",
+        "(2 if cons >= 6 else 1)",
+        source,
+    )
+    source = re.sub(
         r"\b([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*!=\s*null\b",
         r"not _js_nullish(\1)",
         source,

@@ -61,6 +61,18 @@ prop_list = {
     "FIGHT_PROP_HEALED_ADD": "受治疗加成",
     "FIGHT_PROP_NONE": "",
 }
+artifact_substat_id_props = {
+    102: "生命值",
+    103: "百分比生命值",
+    105: "攻击力",
+    106: "百分比攻击力",
+    108: "防御力",
+    109: "百分比防御力",
+    120: "暴击率",
+    122: "暴击伤害",
+    123: "元素充能效率",
+    124: "元素精通",
+}
 artifact_list = load_json(path=f"{json_path}/artifact.json")
 role_ori = load_json(path=f"{json_path}/score.json")
 role_info_json = load_json(path=f"{json_path}/role_info.json")
@@ -82,6 +94,20 @@ for item in role_ori.keys():
     for info in role_ori.get(item).keys():
         if role_ori.get(item).get(info) != 0:
             role_score[item][convert.get(info)] = role_ori.get(item).get(info)
+
+
+def get_artifact_substat_upgrades(attr_ids) -> dict[str, int]:
+    """Count upgrades from Enka roll IDs using Miao's upNum - 1 semantics."""
+    roll_counts: dict[str, int] = {}
+    for attr_id in attr_ids or []:
+        try:
+            prop_id = (int(attr_id) // 10) % 1000
+        except (TypeError, ValueError):
+            continue
+        prop_name = artifact_substat_id_props.get(prop_id)
+        if prop_name:
+            roll_counts[prop_name] = roll_counts.get(prop_name, 0) + 1
+    return {name: max(0, count - 1) for name, count in roll_counts.items()}
 
 
 def backfill_artifact_icon_sources(
@@ -338,13 +364,18 @@ class PlayerInfo:
                     "属性值": artifact["flat"]["reliquaryMainstat"]["statValue"],
                 }
                 artifact_info["词条"] = []
+                substat_upgrades = get_artifact_substat_upgrades(
+                    artifact.get("reliquary", {}).get("appendPropIdList", [])
+                )
                 for reliquary in artifact["flat"].get("reliquarySubstats", []):
-                    artifact_info["词条"].append(
-                        {
-                            "属性名": prop_list[reliquary["appendPropId"]],
-                            "属性值": reliquary["statValue"],
-                        }
-                    )
+                    prop_name = prop_list[reliquary["appendPropId"]]
+                    substat = {
+                        "属性名": prop_name,
+                        "属性值": reliquary["statValue"],
+                    }
+                    if prop_name in substat_upgrades:
+                        substat["强化次数"] = substat_upgrades[prop_name]
+                    artifact_info["词条"].append(substat)
                 artifacts.append(artifact_info)
             role_info["圣遗物"] = artifacts
             role_info["更新时间"] = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d %H:%M:%S")

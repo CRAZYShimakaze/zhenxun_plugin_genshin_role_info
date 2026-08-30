@@ -73,6 +73,52 @@ grow_min_value = {  # 词条成长值
     "生命值": 209.13,
     "防御力": 16.2,
 }
+upgrade_count_marks = {1: "¹", 2: "²", 3: "³", 4: "⁴", 5: "⁵"}
+
+
+def get_upgrade_count_mark(count: int) -> str:
+    return upgrade_count_marks.get(count, "")
+
+
+def get_artifact_upgrade_counts(
+    artifact: dict, fill_ambiguous: bool = False
+) -> list[int]:
+    """Return upgrades after the initial roll, preferring exact source counts."""
+    marks = []
+    ambiguous = []
+    for index, substat in enumerate(artifact["词条"]):
+        if substat.get("强化次数") is not None:
+            try:
+                count = int(substat["强化次数"])
+            except (TypeError, ValueError):
+                count = 0
+            marks.append(max(0, min(5, count)))
+            continue
+
+        prop_name = substat["属性名"]
+        value = substat["属性值"]
+        max_num = min(
+            artifact["等级"] // 4,
+            math.floor(round(value / grow_min_value[prop_name], 1)),
+        )
+        min_num = max(1, math.ceil(round(value / grow_max_value[prop_name], 1)))
+        avg_num = max(
+            1,
+            round(value * 2 / (grow_min_value[prop_name] + grow_max_value[prop_name])),
+        )
+        if max_num != min_num:
+            ambiguous.append(index)
+            marks.append(avg_num - 1)
+        else:
+            marks.append(min_num - 1)
+
+    max_upgrades = artifact["等级"] // 4
+    while sum(marks) > max_upgrades and ambiguous:
+        marks[ambiguous.pop(0)] -= 1
+    if fill_ambiguous:
+        while sum(marks) < max_upgrades and ambiguous:
+            marks[ambiguous.pop(0)] += 1
+    return marks
 
 
 def get_mark_class(mark):
@@ -136,31 +182,8 @@ def get_artifact_score(
         * calc_total_pct
         / 100
     )
-    # 圣遗物强化次数
-    mark = []
-    diff = []
-    for index, s in enumerate(artifact["词条"]):
-        max_num = min(
-            artifact["等级"] // 4,
-            math.floor(round(s["属性值"] / grow_min_value.get(s["属性名"]) * 1, 1)),
-        )
-        min_num = max(1, math.ceil(round(s["属性值"] / grow_max_value.get(s["属性名"]) * 1, 1)))
-        avg_num = max(
-            1,
-            round(s["属性值"] * 2 / (grow_min_value.get(s["属性名"]) + grow_max_value.get(s["属性名"])) * 1),
-        )
-        if max_num != min_num:
-            diff.append(index)
-            mark.append(avg_num - 1)
-        else:
-            mark.append(min_num - 1)
-    while sum(mark) > artifact["等级"] // 4 and len(diff) != 0:
-        mark[diff[0]] -= 1
-        diff.pop(0)
-    if calc_total >= 42:
-        while sum(mark) < artifact["等级"] // 4 and len(diff) != 0:
-            mark[diff[0]] += 1
-            diff.pop(0)
+    # 精确数据沿用 Miao 的 upNum - 1 语义；旧缓存继续按汇总值推算。
+    mark = get_artifact_upgrade_counts(artifact, fill_ambiguous=calc_total >= 42)
     # 最终圣遗物评级
     calc_rank_str = get_mark_class(calc_total)
     return calc_rank_str, calc_total, mark
@@ -809,6 +832,9 @@ def get_effective(data):
                 weight["dmg"] = 0
                 weight["recharge"] = 0
                 suffix += "星扩散"
+        elif role_name == "桑多涅" and len(data["命座"]) >= 2:
+            weight["atk"] = 100
+            suffix += "高命"
         # weight = copy.deepcopy(role_score.get(role_name))
         role_score = {}
         for info in weight.keys():
