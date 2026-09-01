@@ -4,6 +4,17 @@
 
 展示橱窗中角色的面板和伤害数据(与原神角色卡插件部分命令有冲突，建议只安装一个)
 
+## 安装与更新
+
+将本仓库克隆到真寻插件目录的 `genshin_role_info` 子目录：
+
+```bash
+cd /path/to/zhenxun/plugins
+git clone https://github.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info.git genshin_role_info
+```
+
+更新时在插件目录执行 `git pull --ff-only`。插件依赖现有扩展仓库 [zhenxun_extensive_plugin](https://github.com/CRAZYShimakaze/zhenxun_extensive_plugin) 提供的 `plugin_utils`，请确保其位于同级目录 `zhenxun/plugins/plugin_utils`。
+
 ## 使用
 
 - 原神绑定 UID（或绑定原神 UID；手动绑定 UID 须为 9 位且首位为 1-9）
@@ -59,6 +70,11 @@
 * [NoneBot Plugin GsPanel](https://github.com/monsterxcn/nonebot-plugin-gspanel)的评分计算
 
 ## 更新
+
+**2026/8/31**[v4.3.4]
+
+1. 同步 Miao-Plugin commit `a6d0f922244e91ba7c634e05615ddbbc136f6917` 的星扩散、星超导层数参数及月曜反应倍率逻辑
+2. 同步梦见月瑞希伤害与动态评分规则，并更新翠绿之影和星锋剑规则
 
 **2026/8/31**[v4.3.3]
 

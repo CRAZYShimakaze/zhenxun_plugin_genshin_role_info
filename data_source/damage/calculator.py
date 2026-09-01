@@ -55,6 +55,7 @@ class DamageCalculator:
         dynamic_enemy_damage: float = 0,
         coloring: bool = False,
         scene: bool = False,
+        reaction_params: dict | None = None,
     ) -> DamageResult:
         bonus_keys = tuple(key for key in talents.split(",") if key)
         pct = multiplier
@@ -113,7 +114,12 @@ class DamageCalculator:
             cdmg = 0
         reaction_key = reaction
         if reaction:
-            reaction_type, coefficient = reaction_config(reaction, self.element)
+            reaction_type, coefficient = reaction_config(
+                reaction,
+                self.element,
+                talents,
+                reaction_params,
+            )
             reaction_key = REACTION_NAMES.get(reaction, reaction)
             reaction_bonus = self.attr.reaction_bonus.get(reaction_key, 0)
             mastery = mastery_multiplier(reaction_type, self.attr.mastery)
@@ -133,11 +139,9 @@ class DamageCalculator:
                     (
                         level_base_damage(self.level)
                         * (1 + self.attr.reaction_base_pct / 100)
-                        + self.attr.reaction_base_plus
                     )
                     * coefficient
                     * (1 + mastery + reaction_bonus / 100)
-                    + level_base_damage(self.level) * self.attr.reaction_inc / 100
                     + self.attr.reaction_plus
                 ) * self._resistance_coefficient(
                     self.enemy_resistance - resistance_reduction
@@ -145,29 +149,10 @@ class DamageCalculator:
                 return DamageResult(avg=avg, direct=avg)
             elif reaction_type in {"lunar", "stellar"}:
                 lunar_base = damage_base or level_base_damage(self.level)
-                if reaction_key == "lunarCharged":
-                    # Miao applies the 3x hit multiplier only when the
-                    # reaction has a damage base; otherwise the reaction
-                    # base multiplier (7.2) from DmgCalcMeta applies.
-                    coefficient = 3 if damage_base else coefficient
-                elif reaction_key == "lunarCrystallize":
-                    coefficient = 1.6 if damage_base else coefficient
-                elif reaction_key == "stellarConduct":
-                    # Miao defaults the no-base stellar reaction to its
-                    # reaction base multiplier (0), while a talent-linked
-                    # stellar hit uses the 2x hit multiplier.
-                    coefficient = 2 if damage_base else 0
-                else:
-                    # lunarBloom: Miao unconditionally uses the 1x base.
-                    coefficient = 1
                 value = (
-                    (
-                        lunar_base * (1 + self.attr.reaction_base_pct / 100)
-                        + self.attr.reaction_base_plus
-                    )
+                    lunar_base * (1 + self.attr.reaction_base_pct / 100)
                     * coefficient
                     * (1 + mastery + reaction_bonus / 100)
-                    + lunar_base * self.attr.reaction_inc / 100
                     + self.attr.reaction_plus
                 )
                 value *= 1 + elevated / 100

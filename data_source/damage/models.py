@@ -74,6 +74,8 @@ class DamageAttributes:
     static_coloring_dmg: float = 0
     reaction_resistance_reduction: float = 0
     mastery_inc: float = 0
+    base_mastery: float = 0
+    mastery_pct: float = 0
 
     def clone(self) -> DamageAttributes:
         return replace(

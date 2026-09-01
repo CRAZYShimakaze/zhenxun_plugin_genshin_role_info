@@ -207,10 +207,11 @@ REACTION_TYPE = {
     "hyperBloom": ("fusion", 12.0),
     "aggravate": ("bonus", 4.6),
     "spread": ("bonus", 5.0),
-    "lunarBloom": ("lunar", 8.0),
+    "lunarBloom": ("lunar", 1.0),
     "lunarCharged": ("lunar", 7.2),
     "lunarCrystallize": ("lunar", 3.84),
     "stellarConduct": ("stellar", 0.0),
+    "stellarSwirl": ("stellar", 1.0),
 }
 
 REACTION_NAMES = {
@@ -229,6 +230,7 @@ REACTION_NAMES = {
     "月感电": "lunarCharged",
     "月结晶": "lunarCrystallize",
     "星超导": "stellarConduct",
+    "星扩散": "stellarSwirl",
 }
 
 
@@ -276,9 +278,30 @@ def mastery_multiplier(reaction_type: str, mastery: float) -> float:
     return 0
 
 
-def reaction_config(name: str, element: str) -> tuple[str, float]:
+def reaction_config(
+    name: str,
+    element: str,
+    talent: str = "fy",
+    params: dict | None = None,
+) -> tuple[str, float]:
     key = REACTION_NAMES.get(name, name)
     reaction_type, coefficient = REACTION_TYPE[key]
     if isinstance(coefficient, dict):
         coefficient = coefficient.get(element, coefficient["default"])
+    params = params or {}
+    if key == "lunarCharged":
+        coefficient = 7.2 if talent == "fy" else 3.0
+    elif key == "lunarCrystallize":
+        coefficient = 3.84 if talent == "fy" else 1.6
+    elif key == "stellarConduct":
+        count = params.get("stellarConductCount", 12)
+        factors = [1.0, 1.45, 1.5, 1.55, 1.6, 1.65, 1.7, 1.75, 1.8, 1.85, 1.9, 1.95, 2.0]
+        coefficient = factors[count] if isinstance(count, int) and 0 <= count < len(factors) else 1.0
+    elif key == "stellarSwirl" and talent == "fy":
+        if element == "风":
+            coefficient = 3.0
+        elif element == "冰":
+            coefficient = 12.0 if params.get("stellarVortexCount", 6) >= 3 else 8.0
+        else:
+            coefficient = 4.0
     return reaction_type, coefficient

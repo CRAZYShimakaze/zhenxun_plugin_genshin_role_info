@@ -977,6 +977,7 @@ class DamageMethods:
         basic_num: float = 0,
         mode: str = "talent",
         dynamic_data: dict[str, Any] | bool = False,
+        params: dict[str, Any] | bool = False,
     ) -> DamageResult:
         data = dynamic_data if isinstance(dynamic_data, dict) else {}
         tokens = element.split(",") if isinstance(element, str) else []
@@ -1004,6 +1005,7 @@ class DamageMethods:
                 dynamic_enemy_damage=float(data.get("dynamicEnemydmg", 0)),
                 coloring=coloring,
                 scene=scene,
+                reaction_params=params if isinstance(params, dict) else None,
             )
         return self.calculator.calculate(
             multiplier=float(multiplier),
@@ -1017,6 +1019,7 @@ class DamageMethods:
             dynamic_enemy_damage=float(data.get("dynamicEnemydmg", 0)),
             coloring=coloring,
             scene=scene,
+            reaction_params=params if isinstance(params, dict) else None,
         )
 
     def basic(
@@ -1025,8 +1028,9 @@ class DamageMethods:
         talent: str | bool = False,
         element: str | bool = False,
         dynamic_data: dict[str, Any] | bool = False,
+        params: dict[str, Any] | bool = False,
     ) -> DamageResult:
-        return self(value, talent, element, value, "basic", dynamic_data)
+        return self(value, talent, element, value, "basic", dynamic_data, params)
 
     def dynamic(
         self,
@@ -1034,11 +1038,17 @@ class DamageMethods:
         talent: str | bool = False,
         dynamic_data: dict[str, Any] | bool = False,
         element: str | bool = False,
+        params: dict[str, Any] | bool = False,
     ) -> DamageResult:
-        return self(multiplier, talent, element, 0, "talent", dynamic_data)
+        return self(multiplier, talent, element, 0, "talent", dynamic_data, params)
 
-    def reaction(self, element: str = "", talent: str = "fy") -> DamageResult:
-        return self(0, talent, element, 0, "basic", False)
+    def reaction(
+        self,
+        element: str = "",
+        params: dict[str, Any] | bool = False,
+        talent: str = "fy",
+    ) -> DamageResult:
+        return self(0, talent, element, 0, "basic", False, params)
 
     def heal(self, value: float) -> DamageResult:
         return self.calculator.heal(float(value))

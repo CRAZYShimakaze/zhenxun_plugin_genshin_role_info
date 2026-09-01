@@ -87,6 +87,7 @@ def build_context(data: dict) -> DamageContext:
         static_phy=physical_damage,
         coloring_dmg=coloring_damage,
         static_coloring_dmg=coloring_damage,
+        base_mastery=float(prop["元素精通"]),
     )
     talent_levels = {
         "a": int(data["天赋"][0]["等级"]),

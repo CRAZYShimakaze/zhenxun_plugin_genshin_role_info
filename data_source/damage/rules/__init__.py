@@ -150,6 +150,9 @@ def _apply_value(context: DamageContext, key: str, value: float) -> None:
             attr.heal_inc += value
         elif stat == "mastery" and suffix == "Inc":
             attr.mastery_inc += value
+        elif stat == "mastery" and suffix == "Pct":
+            attr.mastery_pct += value
+            attr.mastery += attr.base_mastery * value / 100
         elif suffix == "Inc":
             # Miao stores generic ``Inc`` values separately from the
             # effective stat. Only healing and shield formulas consume it.
@@ -200,6 +203,7 @@ def _apply_value(context: DamageContext, key: str, value: float) -> None:
         "lunarBloom",
         "lunarCrystallize",
         "stellarConduct",
+        "stellarSwirl",
     }:
         attr.reaction_bonus[key] = attr.reaction_bonus.get(key, 0) + value
         return

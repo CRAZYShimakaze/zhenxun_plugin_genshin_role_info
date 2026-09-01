@@ -825,13 +825,21 @@ def get_effective(data):
                 weight["cpct"] = 100
                 suffix += "|西风" if suffix else "西风"
         elif role_name == "梦见月瑞希":
-            if data["属性"]["暴击率"] >= 0.6 or data["属性"]["暴击伤害"] >= 1.2:
+            if (
+                data["属性"]["暴击率"] * 2 + data["属性"]["暴击伤害"] >= 2
+                or any(
+                    artifact.get("所属套装") == "血红之证"
+                    for artifact in artifacts
+                )
+            ):
                 weight["cpct"] = 100
                 weight["cdmg"] = 100
-                weight["mastery"] = 100
                 weight["dmg"] = 0
-                weight["recharge"] = 0
+                weight["recharge"] = 50
                 suffix += "星扩散"
+            if len(data["命座"]) >= 4:
+                weight["recharge"] = 30
+                suffix += "|高命" if suffix else "高命"
         elif role_name == "桑多涅" and len(data["命座"]) >= 2:
             weight["atk"] = 100
             suffix += "高命"

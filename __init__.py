@@ -58,6 +58,7 @@ from .utils.rank_utils import collect_role_rank_entries
 __plugin_meta__ = PluginMetadata(
     name="原神角色面板",
     description="原神角色面板",
+    homepage="https://github.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info",
     usage="""
     查询橱窗内角色的面板
     指令：
@@ -82,7 +83,7 @@ __plugin_meta__ = PluginMetadata(
     """.strip(),
     extra=PluginExtraData(
         author="CRAZYSHIMAKAZE",
-        version="4.3.3",
+        version="4.3.4",
         plugin_type=PluginType.NORMAL,
     ).to_dict(),
 )
@@ -1012,7 +1013,7 @@ def check_uid(uid):
 
 
 async def get_update_info():
-    url = "https://raw.githubusercontent.com/CRAZYShimakaze/zhenxun_extensive_plugin/main/genshin_role_info/README.md"
+    url = "https://raw.githubusercontent.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info/main/README.md"
     try:
         version = await client.get(url, follow_redirects=True)
         version = re.search(r"\*\*\[v\d.\d.\d]((?:.|\n)*?)\*\*", str(version.text))
@@ -1023,7 +1024,7 @@ async def get_update_info():
 
 
 async def _get_update_message():
-    url = "https://raw.githubusercontent.com/CRAZYShimakaze/zhenxun_extensive_plugin/main/genshin_role_info/__init__.py"
+    url = "https://raw.githubusercontent.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info/main/__init__.py"
     try:
         version = await client.get(url, follow_redirects=True)
         version = re.search(r'version="(\d+\.\d+\.\d+)"', str(version.text))

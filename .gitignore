@@ -1,0 +1,26 @@
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test and lint caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Backups and temporary conversion artifacts
+*.bak
+*.backup
+*.old
+*.orig
+*.swp
+*.swo
+*.zip
+*.tmp
+*.temp
+conver.py
