@@ -28,8 +28,8 @@ from zhenxun.configs.utils import PluginExtraData
 # from zhenxun.plugins.call import capture
 from zhenxun.utils.enum import PluginType
 
-from ..plugin_utils.auth_utils import gold_cost
-from ..plugin_utils.download_utils import DownloadError
+# 金币扣费装饰器已停用
+from .utils.download_utils import DownloadError
 from .data_source.damage import get_role_dmg
 from .data_source.damage.recommend import DamageTargetError
 from .data_source.draw_artifact_card import draw_artifact_card
@@ -83,7 +83,7 @@ __plugin_meta__ = PluginMetadata(
     """.strip(),
     extra=PluginExtraData(
         author="CRAZYSHIMAKAZE",
-        version="4.3.4",
+        version="4.3.5",
         plugin_type=PluginType.NORMAL,
     ).to_dict(),
 )
@@ -509,7 +509,7 @@ async def import_artifact(bot: Bot, event):
 
 
 @artifact_adapt.handle()
-@gold_cost(coin=1, percent=1)
+# @gold_cost(coin=1, percent=1)
 async def test(bot: Bot, event: MessageEvent, args: tuple[str, ...] = RegexGroup()):
     msg = args[0].strip(), args[1].strip()
     uid = await get_msg_uid(event)
@@ -545,7 +545,7 @@ async def test(bot: Bot, event: MessageEvent, args: tuple[str, ...] = RegexGroup
 
 
 @artifact_recommend.handle()
-@gold_cost(coin=1, percent=1)
+# @gold_cost(coin=1, percent=1)
 async def test(bot: Bot, event: MessageEvent, args: tuple[str, ...] = RegexGroup()):
     msg = args[0].strip(), args[1].strip()
     damage_index = int(args[2]) if args[2] else None
@@ -659,7 +659,7 @@ async def test(bot: Bot, event: MessageEvent, args: tuple[str, ...] = RegexGroup
 
 
 @group_artifact_list.handle()
-@gold_cost(coin=1, percent=1)
+# @gold_cost(coin=1, percent=1)
 async def _(bot: Bot, event: MessageEvent):
     group_id = event.group_id
     if not os.path.exists(f"{group_info_path}/{group_id}.json"):
@@ -684,7 +684,7 @@ async def _(bot: Bot, event: MessageEvent):
 
 
 @role_rank.handle()
-@gold_cost(coin=1, percent=1)
+# @gold_cost(coin=1, percent=1)
 async def _(
     bot: Bot,
     event: GroupMessageEvent,
@@ -748,7 +748,7 @@ async def _(
 
 
 @artifact_list.handle()
-@gold_cost(coin=1, percent=1)
+# @gold_cost(coin=1, percent=1)
 async def _(bot: Bot, event: MessageEvent):
     uid = await get_msg_uid(event)
     if not os.path.exists(f"{player_info_path}/{uid}.json"):
@@ -897,7 +897,7 @@ async def get_char(uid, event):
         )
 
 
-@gold_cost(coin=1, percent=1)
+# @gold_cost(coin=1, percent=1)
 async def gen(event: MessageEvent, uid, role_name, at_user):
     player_info, _ = await get_enka_info(uid, update_info=False, event=event)
     roles_list = player_info.get_roles_list()
@@ -923,7 +923,7 @@ async def gen(event: MessageEvent, uid, role_name, at_user):
     )
 
 
-@gold_cost(coin=1, percent=1)
+# @gold_cost(coin=1, percent=1)
 async def update(event: MessageEvent, uid, group_save):
     if os.path.exists(f"{player_info_path}/{uid}.json"):
         data = load_json(f"{player_info_path}/{uid}.json")

@@ -13,7 +13,7 @@ cd /path/to/zhenxun/plugins
 git clone https://github.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info.git genshin_role_info
 ```
 
-更新时在插件目录执行 `git pull --ff-only`。插件依赖现有扩展仓库 [zhenxun_extensive_plugin](https://github.com/CRAZYShimakaze/zhenxun_extensive_plugin) 提供的 `plugin_utils`，请确保其位于同级目录 `zhenxun/plugins/plugin_utils`。
+更新时在 `genshin_role_info` 目录执行 `git pull --ff-only`。
 
 ## 使用
 
@@ -70,6 +70,10 @@ git clone https://github.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info.git
 * [NoneBot Plugin GsPanel](https://github.com/monsterxcn/nonebot-plugin-gspanel)的评分计算
 
 ## 更新
+
+**2026/9/1**[v4.3.5]
+
+1. 移除金币扣费依赖并内置资源下载校验工具
 
 **2026/8/31**[v4.3.4]
 

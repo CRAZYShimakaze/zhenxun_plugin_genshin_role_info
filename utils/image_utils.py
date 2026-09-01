@@ -6,7 +6,7 @@ from PIL import Image
 
 from zhenxun.utils.http_utils import AsyncHttpx
 
-from ...plugin_utils.download_utils import download_file_checked, validate_image
+from .download_utils import download_file_checked, validate_image
 
 
 def draw_right_text(draw, text: str, width: int, height: int, fill: str, font):
