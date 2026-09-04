@@ -212,6 +212,7 @@ REACTION_TYPE = {
     "lunarCrystallize": ("lunar", 3.84),
     "stellarConduct": ("stellar", 0.0),
     "stellarSwirl": ("stellar", 1.0),
+    "stellarVortex": ("stellar", 8.0),
 }
 
 REACTION_NAMES = {
@@ -231,6 +232,7 @@ REACTION_NAMES = {
     "月结晶": "lunarCrystallize",
     "星超导": "stellarConduct",
     "星扩散": "stellarSwirl",
+    "星辉冰旋": "stellarVortex",
 }
 
 
@@ -297,11 +299,8 @@ def reaction_config(
         count = params.get("stellarConductCount", 12)
         factors = [1.0, 1.45, 1.5, 1.55, 1.6, 1.65, 1.7, 1.75, 1.8, 1.85, 1.9, 1.95, 2.0]
         coefficient = factors[count] if isinstance(count, int) and 0 <= count < len(factors) else 1.0
-    elif key == "stellarSwirl" and talent == "fy":
-        if element == "风":
-            coefficient = 3.0
-        elif element == "冰":
-            coefficient = 12.0 if params.get("stellarVortexCount", 6) >= 3 else 8.0
-        else:
-            coefficient = 4.0
+    elif key == "stellarSwirl":
+        coefficient = 3.0 if talent == "fy" else 1.0
+    elif key == "stellarVortex":
+        coefficient = 12.0 if params.get("stellarVortexCount", 6) >= 3 else 8.0
     return reaction_type, coefficient

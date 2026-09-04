@@ -311,12 +311,30 @@ def overwrite_uid_binding(qq_id: int, uid: str) -> None:
     _write_json(path, bindings)
 
 
-def bind_single_genshin_uid(qq_id: int, user: dict) -> GenshinSyncResult:
+def get_uid_binding(qq_id: int) -> str | None:
+    bindings = _read_json(PLAYER_INFO_DIR / "qq2uid.json")
+    uid = str(bindings.get(str(qq_id), ""))
+    return uid if uid.isdigit() else None
+
+
+def select_genshin_role(user: dict) -> dict | None:
+    """选择唯一原神角色；多角色时使用米游社标记的当前角色。"""
     roles = user.get("game_roles", {}).get("genshin", [])
-    if not isinstance(roles, list) or len(roles) != 1:
+    if not isinstance(roles, list):
+        return None
+    valid_roles = [role for role in roles if isinstance(role, dict)]
+    if len(valid_roles) == 1:
+        return valid_roles[0]
+    chosen_roles = [role for role in valid_roles if role.get("is_chosen") is True]
+    return chosen_roles[0] if len(chosen_roles) == 1 else None
+
+
+def bind_single_genshin_uid(qq_id: int, user: dict) -> GenshinSyncResult:
+    role = select_genshin_role(user)
+    if role is None:
         return GenshinSyncResult("skipped")
-    uid = str(roles[0].get("game_uid", ""))
-    region = str(roles[0].get("region", ""))
+    uid = str(role.get("game_uid", ""))
+    region = str(role.get("region", ""))
     if not uid.isdigit() or not region:
         return GenshinSyncResult(
             "failed", uid or None, error="原神 UID 或区服信息不完整"
@@ -366,8 +384,9 @@ async def sync_single_genshin_uid(
     binding = bind_single_genshin_uid(qq_id, user)
     if binding.status != "bound":
         return binding
-    roles = user["game_roles"]["genshin"]
-    account_role = roles[0]
+    account_role = select_genshin_role(user)
+    if account_role is None:
+        return GenshinSyncResult("skipped")
     uid = str(binding.uid)
     region = str(account_role.get("region", ""))
 

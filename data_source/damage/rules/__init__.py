@@ -204,6 +204,7 @@ def _apply_value(context: DamageContext, key: str, value: float) -> None:
         "lunarCrystallize",
         "stellarConduct",
         "stellarSwirl",
+        "stellarVortex",
     }:
         attr.reaction_bonus[key] = attr.reaction_bonus.get(key, 0) + value
         return

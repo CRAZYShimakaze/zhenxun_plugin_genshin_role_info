@@ -34,6 +34,52 @@ def select_damage_metric(
     return title, expected, critical
 
 
+def collect_damage_titles(
+    members: Iterable[Mapping[str, object]],
+    uid_map: Mapping[str, object],
+    player_info_dir: str | Path,
+    role_name: str,
+    damage_calculator: DamageCalculator,
+) -> list[str]:
+    """Find the rendered damage item names for one cached group role."""
+    if not isinstance(uid_map, Mapping):
+        return []
+
+    player_info_dir = Path(player_info_dir)
+    for member in members:
+        if not isinstance(member, Mapping):
+            continue
+        try:
+            qq = int(str(member.get("user_id")))
+        except (TypeError, ValueError):
+            continue
+        uid = uid_map.get(str(qq))
+        if not uid:
+            continue
+        try:
+            payload = json.loads(
+                (player_info_dir / f"{str(uid).strip()}.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+        except (OSError, UnicodeError, TypeError, ValueError):
+            continue
+        roles = payload.get("角色") if isinstance(payload, Mapping) else None
+        role_data = roles.get(role_name) if isinstance(roles, Mapping) else None
+        if not isinstance(role_data, Mapping):
+            continue
+        try:
+            damage = damage_calculator(role_data)
+        except Exception:
+            continue
+        if not isinstance(damage, Mapping):
+            continue
+        titles = [str(title) for title in damage if title != "额外说明"]
+        if titles:
+            return titles
+    return []
+
+
 def _total_stat(properties: Mapping[str, object], stat: str) -> float:
     return float(properties.get(f"基础{stat}", 0) or 0) + float(
         properties.get(f"额外{stat}", 0) or 0

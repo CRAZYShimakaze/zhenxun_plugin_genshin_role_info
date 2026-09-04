@@ -19,7 +19,7 @@ git clone https://github.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info.git
 
 - 原神绑定 UID（或绑定原神 UID；手动绑定 UID 须为 9 位且首位为 1-9）
 - 原神解绑
-- 米游社更新原神面板（需先扫码登录米游社账号，且账号仅有一个原神 UID）
+- 米游社更新原神面板（需先扫码登录；多个原神 UID 时使用米游社标记的当前角色）
 - 角色面板（例:甘雨面板、甘雨面板@用户、甘雨面板104442596）
 - 更新/刷新原神面板（末尾可直接写 UID；省略时使用当前发送者已绑定的 UID）
 - 原神角色排行
@@ -56,7 +56,7 @@ git clone https://github.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info.git
 ## 数据与同步
 
 - 普通角色查询优先读取插件的 UID 本地缓存；首次查询或显式更新时通过 MicroGG/Enka 获取橱窗数据。更新会重建角色、圣遗物归属、角色评分和榜单缓存。
-- 米游社更新使用已登录的米游社账号获取角色详情，自动绑定该账号唯一的原神 UID，并写入同一 UID 本地缓存；同步后会重建圣遗物榜单与毕业统计并生成更新图。账号未登录、没有原神角色或存在多个原神 UID 时不会同步。
+- 米游社更新使用已登录的米游社账号获取角色详情，自动绑定唯一原神 UID；存在多个 UID 时使用米游社唯一标记的当前角色，并写入同一 UID 本地缓存。同步后会重建圣遗物榜单与毕业统计并生成更新图；账号未登录、没有原神角色或无法确定唯一当前角色时不会同步。
 
 ## 效果图
 
@@ -70,6 +70,12 @@ git clone https://github.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info.git
 * [NoneBot Plugin GsPanel](https://github.com/monsterxcn/nonebot-plugin-gspanel)的评分计算
 
 ## 更新
+
+**2026/9/4**[v4.3.6]
+
+1. 支持米游社多 UID 时按当前角色同步面板，并动态提示伤害排行项目
+2. 同步 Miao-Plugin commit `4b6cf4c2845a143ef6d99d3fcafe4033b814f55c` 的星扩散、星辉冰旋相关伤害及梦见月瑞希、武器、圣遗物规则
+3. 调整部分角色圣遗物评分规则
 
 **2026/9/1**[v4.3.5]
 
