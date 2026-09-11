@@ -412,4 +412,4 @@ git clone https://github.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info.git
 
 **2022/8/19**[v0.2]
 
-1. 统一立�
+1. 统一立绘

@@ -252,7 +252,7 @@ async def get_enka_info(uid, update_info, event):
         status_hint_map = {
             400: "UID 格式错误...",
             404: "玩家不存在（MHY 服务器说的）...",
-            424: "游戏维护中 / 游戏更新后一切都崩溃了...",
+            424: "查询接口维护中...",
             429: "请求频率限制（被我的或者MHY的服务器）...",
             500: "服务器错误...",
             503: "我搞砸了...",
@@ -1041,6 +1041,10 @@ def check_uid(uid):
     return re.search(r"^[123456789]\d{8}$", str(uid)) is not None
 
 
+def _version_key(version: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in version.split("."))
+
+
 async def get_update_info():
     url = "https://raw.githubusercontent.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info/main/README.md"
     try:
@@ -1060,10 +1064,14 @@ async def _get_update_message():
     except Exception as e:
         print(f"{__zx_plugin_name__}插件检查更新失败，请检查github连接性是否良好!: {e}")
         return None
+    if not version:
+        print(f"{__zx_plugin_name__}插件检查更新失败，远端版本号格式无效")
+        return None
+    latest_version = version.group(1)
+    if _version_key(latest_version) <= _version_key(__plugin_version__):
+        return None
     update_info = await get_update_info()
-    if version.group(1) > __plugin_version__:
-        return f"检测到{__zx_plugin_name__}插件有更新(当前V{__plugin_version__},最新V{version.group(1)})！请前往github下载！\n本次更新内容如下:\n{update_info}"
-    return f"{__zx_plugin_name__}插件已经是最新V{__plugin_version__}！最近一次的更新内容如下:\n{update_info}"
+    return f"检测到{__zx_plugin_name__}插件有更新(当前V{__plugin_version__},最新V{latest_version})！请前往github下载！\n本次更新内容如下:\n{update_info}"
 
 
 async def _notify_update_to_superusers():
