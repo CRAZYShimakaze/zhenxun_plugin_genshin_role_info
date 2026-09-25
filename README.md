@@ -71,6 +71,10 @@ git clone https://github.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info.git
 
 ## 更新
 
+**2026/9/18**
+
+1. 同步 Miao-Plugin commit `c0cdcc80f31b126c0165ce88ec9ba68dc933680d` 的角色圣遗物评分权重，移除胡桃核爆、雷电将军高精等旧特殊规则
+
 **2026/9/4**[v4.3.6]
 
 1. 支持米游社多 UID 时按当前角色同步面板，并动态提示伤害排行项目

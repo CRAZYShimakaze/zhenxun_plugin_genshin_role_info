@@ -422,18 +422,10 @@ def get_effective(data):
                 }
                 suffix += "精通"
         elif role_name == "宵宫":
-            if data["属性"]["元素精通"] < 50 and data["属性"]["暴击率"] * 2 + data["属性"]["暴击伤害"] > 3.2:
-                weight = {"atk": 85, "cpct": 100, "cdmg": 100, "dmg": 100}
+            if data["属性"]["元素精通"] < 50:
+                weight["atk"] = 85
+                weight["mastery"] = 0
                 suffix += "纯火"
-            if data["属性"]["元素精通"] > 200 and artifacts[2]["主属性"]["属性名"] == "元素精通":
-                weight = {
-                    "atk": 75,
-                    "cpct": 100,
-                    "cdmg": 100,
-                    "mastery": 100,
-                    "dmg": 100,
-                }
-                suffix += "精通"
         elif role_name == "行秋":
             if data["属性"]["元素精通"] > 120:
                 weight = {
@@ -442,7 +434,7 @@ def get_effective(data):
                     "cdmg": 100,
                     "mastery": 75,
                     "dmg": 100,
-                    "recharge": 75,
+                    "recharge": 100,
                 }
                 suffix += "蒸发"
         elif role_name == "云堇":
@@ -463,27 +455,14 @@ def get_effective(data):
         elif role_name == "雷电将军":
             if data["属性"]["元素精通"] > 500:
                 weight = {
-                    "atk": 75,
-                    "cpct": 90,
-                    "cdmg": 90,
+                    "atk": 50,
+                    "cpct": 50,
+                    "cdmg": 50,
                     "mastery": 100,
-                    "dmg": 75,
-                    "recharge": 90,
+                    "dmg": 50,
+                    "recharge": 50,
                 }
                 suffix += "精通"
-            elif data["武器"]["名称"] == "薙草之稻光" and data["武器"]["精炼等级"] >= 3:
-                weight = {
-                    "atk": 90,
-                    "cpct": 100,
-                    "cdmg": 100,
-                    "dmg": 90,
-                    "recharge": 90,
-                }
-                suffix += "高精"
-        elif role_name == "胡桃":
-            if data["属性"]["暴击率"] < 0.15 and data["属性"]["暴击伤害"] > 2.8:
-                weight = {"hp": 90, "atk": 50, "cdmg": 100, "mastery": 90, "dmg": 100}
-                suffix += "核爆"
         elif role_name == "夜兰":
             if len(data["命座"]) >= 1 and sum(
                 artifact.get("所属套装") == "绝缘之旗印"
@@ -502,14 +481,9 @@ def get_effective(data):
                 weight["mastery"] = 75
                 suffix += "精通"
         elif role_name == "可莉":
-            if data["属性"]["元素精通"] < 50 and data["属性"]["暴击率"] * 2 + data["属性"]["暴击伤害"] > 3.2:
-                weight = {
-                    "atk": 85,
-                    "cpct": 100,
-                    "cdmg": 100,
-                    "dmg": 100,
-                    "recharge": 55,
-                }
+            if data["属性"]["元素精通"] < 50:
+                weight["atk"] = 85
+                weight["mastery"] = 0
                 suffix += "纯火"
         elif role_name == "迪希雅":
             if (
@@ -568,7 +542,7 @@ def get_effective(data):
                 suffix += "战斗"
         elif role_name == "芙宁娜":
             if len(data["命座"]) >= 4:
-                weight["recharge"] = 60
+                weight["recharge"] = 75
                 if len(data["命座"]) == 6:
                     weight["mastery"] = 45
                 suffix += "高命"
@@ -720,9 +694,6 @@ def get_effective(data):
                 weight["cdmg"] = 100
                 weight["dmg"] = 100
                 suffix += "输出"
-            if len(data["命座"]) > 0:
-                weight["recharge"] = 75
-                suffix += "高命"
         elif role_name == "菈乌玛":
             if data["属性"]["暴击率"] * 2 + data["属性"]["暴击伤害"] >= 2.4:
                 weight["atk"] = 50
@@ -822,10 +793,11 @@ def get_effective(data):
         elif role_name == "梦见月瑞希":
             if (
                 data["属性"]["暴击率"] * 2 + data["属性"]["暴击伤害"] >= 2
-                or any(
+                or sum(
                     artifact.get("所属套装") == "血红之证"
                     for artifact in artifacts
                 )
+                >= 4
             ):
                 weight["cpct"] = 100
                 weight["cdmg"] = 100
