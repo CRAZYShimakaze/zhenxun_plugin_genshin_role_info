@@ -83,7 +83,7 @@ __plugin_meta__ = PluginMetadata(
     """.strip(),
     extra=PluginExtraData(
         author="CRAZYSHIMAKAZE",
-        version="4.3.10",
+        version="4.3.13",
         plugin_type=PluginType.NORMAL,
     ).to_dict(),
 )
@@ -317,11 +317,8 @@ async def check_artifact(event, player_info, roles_list, uid, group_save):
                 artifact_list[pos_name.index(role_data["圣遗物"][j]["部位"])] = role_data["圣遗物"][j]
             artifact_copy = copy.deepcopy(artifact_list[i])
             if artifact_copy.get("等级", 0) >= 10:
-                for name_all in list(role_info_json.keys()) + [""]:
-                    artifact_copy["角色"] = name_all
-                    if artifact_copy in artifact_all[i]:
-                        artifact_all[i].remove(artifact_copy)
                 artifact_copy["角色"] = role_name
+                # PlayerInfo.save merges source variants using artifact stats.
                 artifact_all[i].append(artifact_copy)
     roles_list = player_info.get_roles_list()
     player_info.data["圣遗物榜单"] = []

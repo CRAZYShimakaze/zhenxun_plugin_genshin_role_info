@@ -313,6 +313,10 @@ def get_effective(data):
         if weight is None:
             return fallback_weight, role_name
 
+        if role_name == "奥黛塔" and len(data.get("命座", [])) >= 2:
+            weight["recharge"] = 50
+            suffix += "高命"
+
         crit_value = (
             data["属性"]["暴击率"] * 2 + data["属性"]["暴击伤害"]
         )

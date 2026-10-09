@@ -71,6 +71,19 @@ git clone https://github.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info.git
 
 ## 更新
 
+**2026/10/9**[v4.3.13]
+
+1. 同步 Miao-Plugin commit `b01d77483268eb2236876ad0995fab27052c09ad` 的尼可与奥黛塔圣遗物评分权重，奥黛塔二命起恢复高命充能权重
+
+**2026/10/5**[v4.3.12]
+
+1. 同步 Miao-Plugin commit `0771a0e827bc51dfb6c8df50d797447e1aae7ba7`：新增凝雪沉心伤害规则，按装备者元素区分精通、攻击力及星烁反应加成
+
+**2026/10/2**[v4.3.11]
+
+1. 同步 Miao-Plugin commit `fbabcc0c0952c01212c8491b0af9ec3b252a4ba2`（2.5.20）：修正莉奈娅四命百万吨重锤防御加成，新增沃雅妮莎羽毛提升计算及双水共鸣
+2. 更新夏洛蒂、梦见月瑞希加成说明，补充米提亚、瓦列里基础资料、别名、天赋和评分权重；上游尚未提供这两名角色的伤害计算规则
+
 **2026/9/25**[v4.3.10]
 
 1. 同步 Miao-Plugin commit `fb22b8491ea7172d404583b1da5b7fca14b3d266`：补充沃雅妮莎一命攻击力提升展示

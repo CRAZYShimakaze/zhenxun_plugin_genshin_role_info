@@ -1,3 +1,4 @@
+import copy
 import datetime
 import os
 
@@ -140,6 +141,56 @@ def backfill_artifact_icon_sources(
     return updated
 
 
+def _artifact_key(artifact):
+    """Exclude source and ownership metadata from artifact identity."""
+    return (
+        artifact["名称"],
+        artifact["部位"],
+        artifact["所属套装"],
+        artifact["等级"],
+        artifact["星级"],
+        artifact["主属性"]["属性名"],
+        artifact["主属性"]["属性值"],
+        tuple(sorted((affix["属性名"], affix["属性值"]) for affix in artifact["词条"])),
+    )
+
+
+def _normalize_artifact_cache(data, roles):
+    """Merge legacy/source variants before use and before persisting updates."""
+    equipped = {}
+    for role_name, role in roles.items():
+        for artifact in role.get("圣遗物", []):
+            equipped.setdefault(_artifact_key(artifact), []).append(role_name)
+    for index, artifacts in enumerate(data["圣遗物列表"]):
+        unique = {}
+        for artifact in artifacts:
+            key = _artifact_key(artifact)
+            if key not in unique:
+                unique[key] = copy.deepcopy(artifact)
+                continue
+            cached = unique[key]
+            if artifact.get("角色"):
+                cached["角色"] = artifact["角色"]
+            if artifact.get("图标链接"):
+                cached["图标"] = artifact["图标"]
+                cached["图标链接"] = artifact["图标链接"]
+            upgrades = {
+                affix["属性名"]: affix["强化次数"]
+                for affix in artifact["词条"]
+                if affix.get("强化次数") is not None
+            }
+            for affix in cached["词条"]:
+                if affix["属性名"] in upgrades:
+                    affix["强化次数"] = upgrades[affix["属性名"]]
+        for key, artifact in unique.items():
+            owners = equipped.get(key, [])
+            if owners and artifact.get("角色") not in owners:
+                artifact["角色"] = owners[-1]
+            elif not owners and artifact.get("角色") in roles:
+                artifact["角色"] = ""
+        data["圣遗物列表"][index] = list(unique.values())
+
+
 def resolve_traveler_role(skill_level_map: dict) -> str:
     skill_ids = set(skill_level_map)
     for role_name, metadata in role_info_json.items():
@@ -163,6 +214,7 @@ class PlayerInfo:
         if "圣遗物列表" not in self.data:
             self.data["圣遗物列表"] = [[], [], [], [], []]
         backfill_artifact_icon_sources(self.data)
+        _normalize_artifact_cache(self.data, self.roles)
 
     def set_player(self, data: dict):
         self.player_info["昵称"] = data.get("nickname", "unknown")
@@ -402,6 +454,7 @@ class PlayerInfo:
     def save(self):
         self.data["玩家信息"] = self.player_info
         self.data["角色"] = self.roles
+        _normalize_artifact_cache(self.data, self.roles)
         save_json(data=self.data, path=self.path)
 
 
