@@ -71,6 +71,10 @@ git clone https://github.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info.git
 
 ## 更新
 
+**2026/10/12**[v4.3.14]
+
+1. 同步 Miao-Plugin commit `6ffd94a2d3dae98fd774a0e12df13f3030dd853f` 的新枝三层 Buff 数值，并同步 commit `26500d68db27d335c487e51f3ea79ae4cfd8eb22` 的薇斯纳 Buff 文案标点
+
 **2026/10/9**[v4.3.13]
 
 1. 同步 Miao-Plugin commit `b01d77483268eb2236876ad0995fab27052c09ad` 的尼可与奥黛塔圣遗物评分权重，奥黛塔二命起恢复高命充能权重
