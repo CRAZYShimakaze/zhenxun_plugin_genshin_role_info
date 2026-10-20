@@ -83,7 +83,7 @@ __plugin_meta__ = PluginMetadata(
     """.strip(),
     extra=PluginExtraData(
         author="CRAZYSHIMAKAZE",
-        version="4.3.14",
+        version="4.3.15",
         plugin_type=PluginType.NORMAL,
     ).to_dict(),
 )
@@ -95,7 +95,7 @@ microgg_url = "https://profile.microgg.cn/api/uid/{}"
 headers = {"User-Agent": "Miao-Plugin/3.0"}
 
 weapon_loc_url = "https://raw.githubusercontent.com/EnkaNetwork/API-docs/refs/heads/master/store/gi/locs.json"
-api_url = [microgg_url, enka_url]
+api_url = [enka_url, microgg_url]
 bind = on_regex(r"(?:原神绑定|绑定原神).*?(\d+)", priority=5, block=True)
 unbind = on_command("原神解绑", priority=5, block=True)
 card_list = on_command("原神角色排行", priority=4, block=True)

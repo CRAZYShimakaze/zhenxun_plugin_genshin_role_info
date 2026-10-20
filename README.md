@@ -71,6 +71,11 @@ git clone https://github.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info.git
 
 ## 更新
 
+**2026/10/16**[v4.3.15]
+
+1. 同步 Miao-Plugin `07d5c8b8`：按圣遗物实际主词条计算评分归一化上限，修正特定搭配评分超限，并将单件评分限制在 70 分以内
+2. 同步 Miao-Plugin `a0b811d6`：调整星锋剑规则结构，分别处理精炼攻击力加成与固定 42% 暴击伤害加成
+
 **2026/10/12**[v4.3.14]
 
 1. 同步 Miao-Plugin commit `6ffd94a2d3dae98fd774a0e12df13f3030dd853f` 的新枝三层 Buff 数值，并同步 commit `26500d68db27d335c487e51f3ea79ae4cfd8eb22` 的薇斯纳 Buff 文案标点

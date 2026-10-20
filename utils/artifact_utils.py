@@ -171,15 +171,35 @@ def get_artifact_score(
                 and main_weight >= 75
             ):
                 main_fix_pct = 1
+    # 非最优主词条会释放原本排除的高权重副词条，需按实际主词条重算裸分上限。
+    position_max = max_mark[str(pos_idx)]["total"]
+    if pos_idx >= 2:
+        main_weight = point_mark.get(main_name, 0) * grow_max_value.get(main_name, 0)
+        sub_weights = sorted(
+            (
+                point_mark[name] * grow_max_value[name]
+                for name in grow_min_value
+                if name != main_name and point_mark.get(name)
+            ),
+            reverse=True,
+        )[:4]
+        actual_max = main_weight * 2 + sum(
+            weight * (6 if index == 0 else 1)
+            for index, weight in enumerate(sub_weights)
+        )
+        position_max = max(position_max, actual_max)
     # 总分对齐系数（百分数），按满分 66 对齐各位置圣遗物的总分
-    calc_total_pct = 66 / (max_mark[str(pos_idx)]["total"] * 46.6 / 6 / 100) * 100
+    calc_total_pct = (
+        66 / (position_max * 46.6 / 6 / 100) * 100 if position_max > 0 else 0
+    )
     # 最终圣遗物总分
-    calc_total = (
+    calc_total = min(
         (calc_main + sum(s[2] for s in calc_subs))
         * (1 + main_fix_pct)
         / 2
         * calc_total_pct
-        / 100
+        / 100,
+        70,
     )
     # 精确数据沿用 Miao 的 upNum - 1 语义；旧缓存继续按汇总值推算。
     mark = get_artifact_upgrade_counts(artifact, fill_ambiguous=calc_total >= 42)
