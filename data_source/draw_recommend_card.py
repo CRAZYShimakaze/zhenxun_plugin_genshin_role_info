@@ -84,19 +84,23 @@ def sort_recommend(artifact, position):
     artifact_recommend = []
     for role_name_full, effective in role_score.items():
         role_name = role_name_full.split("-")[0]
-        if "主" in role_name or "旅行者" in role_name:
-            role_name = "空"
-        affix_weight, point_mark, max_mark = get_miao_score(effective, role_info_json[role_name]["属性"])
+        role_info = role_info_json.get(role_name, {})
+        if not role_info.get("元素"):
+            continue
+        affix_weight, point_mark, max_mark = get_miao_score(effective, role_info["属性"])
         artifact_score, grade, mark = get_artifact_score(
             point_mark,
             max_mark,
             artifact,
-            role_info_json[role_name]["元素"],
+            role_info["元素"],
             position,
             role_name,
         )
 
-        artifact_pk_info = {"角色": role_name}
+        artifact_pk_info = {"角色": role_name, "元素": role_info["元素"]}
+        # 旅行者按对应元素评分，头像仍使用空的通用资源。
+        if role_name in {"风主", "岩主", "雷主", "草主", "水主", "火主", "冰主"}:
+            artifact_pk_info["角色"] = "空"
         artifact_pk_info["星级"] = artifact["星级"]
         artifact_pk_info["图标"] = artifact["图标"]
         artifact_pk_info["图标链接"] = artifact.get("图标链接", "")

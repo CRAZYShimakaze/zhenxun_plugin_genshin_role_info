@@ -43,7 +43,9 @@
     "AubadeOfMorningstarAndMoon": "晨星与月的晓歌",
     "ADayCarvedFromRisingWinds": "风起之日",
     "DisenchantmentInDeepShadow": "影中沉凝的幻灭",
-    "HeavensGift": "天之美赐"
+    "HeavensGift": "天之美赐",
+    "ScarletProof": "血红之证",
+    "HeartOfTheFurnace": "炉火融炼之心"
   },
   "位置": {
     "flower": 0,
@@ -559,6 +561,20 @@
       "天授之令",
       "天授之禄",
       "天授之冕"
+    ],
+    "血红之证": [
+      "感谢你的奉献",
+      "铭记你的功勋",
+      "授予你的年华",
+      "饮尽你的血泪",
+      "缅怀你的信仰"
+    ],
+    "炉火融炼之心": [
+      "熔铸者的雅量",
+      "熔铸者的观测",
+      "熔铸者的计算",
+      "熔铸者的揣度",
+      "熔铸者的继志"
     ]
   }
 }

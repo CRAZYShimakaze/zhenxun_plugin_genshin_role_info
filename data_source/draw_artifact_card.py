@@ -90,7 +90,7 @@ async def draw_artifact_card(
     )
     if artifact_info[0].get("角色", "") != "":
         bg = load_image(
-            f"{bg_path}/背景_{role_info_json[artifact_info[0]['角色']]['元素']}.png",
+            f"{bg_path}/背景_{artifact_info[0].get('元素') or role_info_json[artifact_info[0]['角色']]['元素']}.png",
             size=(wid, hei),
             mode="RGBA",
         )
