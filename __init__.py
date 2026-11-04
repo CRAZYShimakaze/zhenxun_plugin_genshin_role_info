@@ -83,7 +83,7 @@ __plugin_meta__ = PluginMetadata(
     """.strip(),
     extra=PluginExtraData(
         author="CRAZYSHIMAKAZE",
-        version="4.3.15",
+        version="4.3.16",
         plugin_type=PluginType.NORMAL,
     ).to_dict(),
 )
@@ -939,7 +939,7 @@ async def gen(event: MessageEvent, uid, role_name, at_user):
         )
     except (DownloadError, MissingIconSourceError):
         return await get_card.finish(
-            "面板图标资源获取失败，请更新原神面板后重试。",
+            "角色数据尚未适配,请耐心等待...",
             at_sender=False,
         )
     msg = "" if at_user else check_role(role_name, event, img, score)
