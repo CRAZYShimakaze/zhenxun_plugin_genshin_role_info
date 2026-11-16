@@ -24,11 +24,13 @@ from nonebot.plugin import PluginMetadata
 from nonebot_plugin_apscheduler import scheduler
 
 from zhenxun.configs.utils import PluginExtraData
+from zhenxun.services.log import logger
 
 # from zhenxun.plugins.call import capture
 from zhenxun.utils.enum import PluginType
 
 # 金币扣费装饰器已停用
+from .battle_records import BATTLE_COMMAND_PATTERN, build_battle_report, parse_battle_command
 from .utils.download_utils import DownloadError
 from .data_source.damage import get_role_dmg
 from .data_source.damage.recommend import DamageTargetError
@@ -65,6 +67,10 @@ __plugin_meta__ = PluginMetadata(
         原神绑定UID/uidXXX
         原神解绑
         米游社更新原神面板
+        深渊 / 深渊上期
+        剧诗 / 剧诗上期
+        幽境 / 危战 / 危战上期
+        原神探索度
         角色面板 (例:刻晴面板、刻晴面板@XXX、刻晴面板+uid)
         更新原神面板 (uid)
         圣遗物导入
@@ -83,7 +89,7 @@ __plugin_meta__ = PluginMetadata(
     """.strip(),
     extra=PluginExtraData(
         author="CRAZYSHIMAKAZE",
-        version="4.3.16",
+        version="4.3.17",
         plugin_type=PluginType.NORMAL,
     ).to_dict(),
 )
@@ -119,6 +125,10 @@ import_artifact = on_message(permission=PRIVATE, priority=1, block=False)
 import_artifact_hint = on_command("圣遗物导入", priority=4, block=True)
 check = on_command("gsck", permission=SUPERUSER, priority=4, block=True)
 mys_update_panel = on_command("米游社更新原神面板", priority=3, block=True)
+battle_record = on_regex(BATTLE_COMMAND_PATTERN, priority=3, block=True)
+_battle_record_inflight: set[int] = set()
+exploration_record = on_regex(r"^\s*原神探索度\s*$", priority=3, block=True)
+_exploration_inflight: set[int] = set()
 
 client = httpx.AsyncClient(timeout=120)
 
@@ -198,6 +208,157 @@ async def _update_panel_from_mys(event: MessageEvent) -> str | Message:
 async def _(event: MessageEvent):
     message = await _update_panel_from_mys(event)
     await mys_update_panel.finish(MessageSegment.reply(event.message_id) + message)
+
+
+async def _query_battle_record(event: MessageEvent) -> str | MessageSegment:
+    query = parse_battle_command(event.get_plaintext())
+    if query is None:
+        return "请使用「深渊」「剧诗」或「幽境 / 危战」，末尾可加「上期」"
+    if event.user_id in _battle_record_inflight:
+        return "你的战绩正在查询中，请稍候"
+    try:
+        from ..mys_sign.data_store import load_user
+        from ..mys_sign.mys_api import MysAPI
+        from .mys_sync import select_genshin_role
+
+        user = load_user(event.user_id)
+    except Exception:
+        return "读取米游社登录状态失败，请稍后重试"
+    if error := _mys_role_error(user):
+        return error
+    role = select_genshin_role(user)
+    if not role or not role.get("game_uid") or not role.get("region"):
+        return "米游社原神角色信息不完整，请重新扫码登录"
+
+    async def notify_captcha(link: str) -> None:
+        await battle_record.send(
+            MessageSegment.reply(event.message_id)
+            + "查询原神战绩需要完成验证码，请在 3 分钟内打开链接：\n"
+            + link
+            + "\n验证完成后将自动继续查询"
+        )
+
+    _battle_record_inflight.add(event.user_id)
+    try:
+        await battle_record.send(MessageSegment.reply(event.message_id) + "正在查询米游社战绩，请稍候…")
+        api = MysAPI()
+        try:
+            data = await api.get_genshin_battle_records(
+                user,
+                uid=str(role["game_uid"]),
+                region=str(role["region"]),
+                kind=query.kind,
+                schedule_type=query.schedule_type,
+                captcha_notifier=notify_captcha,
+            )
+        finally:
+            await api.close()
+        report = build_battle_report(
+            query.kind, data,
+            uid=str(role["game_uid"]),
+            nickname=str(role.get("nickname") or "旅行者"),
+            schedule_type=query.schedule_type,
+        )
+        try:
+            from .battle_render import render_battle_report
+
+            image = await render_battle_report(report)
+        except Exception as error:
+            logger.warning(f"原神战绩图片生成失败: kind={query.kind}, error={type(error).__name__}")
+            if report["empty_message"]:
+                return report["empty_message"]
+            summary = "\n".join(f"{item['label']}：{item['value']}" for item in report["metrics"])
+            hero = report["hero"]
+            return (
+                f"{report['title']}（{report['period_label']}）\n"
+                f"{hero['label']}：{hero['value']} {hero['unit']}\n{summary}\n"
+                "战绩数据已获取，图片生成失败，请稍后重试"
+            )
+        return MessageSegment.image(image)
+    except RuntimeError as error:
+        return f"原神战绩查询失败：{error}"
+    except Exception as error:
+        logger.warning(f"原神战绩查询失败: kind={query.kind}, error={type(error).__name__}")
+        return "原神战绩查询失败，请稍后重试"
+    finally:
+        _battle_record_inflight.discard(event.user_id)
+
+
+@battle_record.handle()
+async def _(event: MessageEvent):
+    message = await _query_battle_record(event)
+    await battle_record.finish(MessageSegment.reply(event.message_id) + message)
+
+
+async def _query_exploration(event: MessageEvent) -> str | MessageSegment:
+    if event.user_id in _exploration_inflight:
+        return "你的探索度正在查询中，请稍候"
+    try:
+        from ..mys_sign.data_store import load_user
+        from ..mys_sign.mys_api import MysAPI
+        from .mys_sync import select_genshin_role
+
+        user = load_user(event.user_id)
+    except Exception:
+        return "读取米游社登录状态失败，请稍后重试"
+    if error := _mys_role_error(user):
+        return error
+    role = select_genshin_role(user)
+    if not role or not role.get("game_uid") or not role.get("region"):
+        return "米游社原神角色信息不完整，请重新扫码登录"
+
+    async def notify_captcha(link: str) -> None:
+        await exploration_record.send(
+            MessageSegment.reply(event.message_id)
+            + "查询原神探索度需要完成验证码，请在 3 分钟内打开链接：\n"
+            + link
+            + "\n验证完成后将自动继续查询"
+        )
+
+    _exploration_inflight.add(event.user_id)
+    try:
+        api = MysAPI()
+        try:
+            data = await api.get_genshin_exploration(
+                user,
+                uid=str(role["game_uid"]),
+                region=str(role["region"]),
+                captcha_notifier=notify_captcha,
+            )
+        finally:
+            await api.close()
+        from .exploration import build_exploration_report
+        from .exploration_render import render_exploration_report
+
+        report = build_exploration_report(
+            data, uid=str(role["game_uid"]),
+            nickname=str(role.get("nickname") or "旅行者"),
+        )
+        try:
+            image = await render_exploration_report(report)
+        except Exception as error:
+            logger.warning(f"原神探索度图片生成失败: error={type(error).__name__}")
+            if report["empty_message"]:
+                return report["empty_message"]
+            summary = "\n".join(
+                f"{region['name']}：{region['percentage'] + '%' if region['available'] else '—'}"
+                for region in report["regions"]
+            )
+            return f"原神探索度\n{summary}\n探索数据已获取，图片生成失败，请稍后重试"
+        return MessageSegment.image(image)
+    except RuntimeError as error:
+        return f"原神探索度查询失败：{error}"
+    except Exception as error:
+        logger.warning(f"原神探索度查询失败: error={type(error).__name__}")
+        return "原神探索度查询失败，请稍后重试"
+    finally:
+        _exploration_inflight.discard(event.user_id)
+
+
+@exploration_record.handle()
+async def _(event: MessageEvent):
+    message = await _query_exploration(event)
+    await exploration_record.finish(MessageSegment.reply(event.message_id) + message)
 
 
 @check.handle()

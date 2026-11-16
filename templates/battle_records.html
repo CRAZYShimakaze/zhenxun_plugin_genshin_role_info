@@ -1,0 +1,431 @@
+{% macro avatar_card(avatar) -%}
+<figure class="gp-avatar">
+  <div class="gp-avatar-img" data-element="{{ avatar.element }}">
+    {% if avatar.icon %}<img src="{{ avatar.icon }}" alt="{{ avatar.name }}" width="128" height="128">{% else %}<span class="gp-avatar-placeholder" aria-hidden="true">{{ avatar.name[:1] or '?' }}</span>{% endif %}
+  </div>
+  <figcaption class="gp-avatar-name">{{ avatar.name }}</figcaption>
+</figure>
+{%- endmacro %}
+
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=720, initial-scale=1">
+  <base href="{{ static_base }}">
+  <style>
+    @font-face {
+      font-family: "GenshinReport";
+      src: url("{{ font_uri }}") format("truetype");
+      font-display: block;
+    }
+    :root {
+      color-scheme: light;
+      --paper: #f6f2e9;
+      --panel: #fffdf8;
+      --soft: #eee9de;
+      --ink: #303b48;
+      --muted: #74786f;
+      --line: #ded8c9;
+      --gold: #98773e;
+      --gold-soft: #e7dbc1;
+      --hydro: #b9d8e2;
+      --pyro: #e9c9b6;
+      --electro: #d7c9e7;
+      --dendro: #cdd9b5;
+      --anemo: #c7dfd0;
+      --geo: #e8d9b6;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 720px; background: var(--paper); }
+    body {
+      color: var(--ink);
+      font-family: "WenQuanYi Zen Hei", "Microsoft YaHei", "GenshinReport", sans-serif;
+      font-size: 18px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    .gp-report {
+      width: 720px;
+      min-height: 320px;
+      overflow: hidden;
+      background: var(--paper);
+      border: 1px solid var(--line);
+    }
+    .gp-head {
+      position: relative;
+      isolation: isolate;
+      padding: 28px 30px 23px;
+      overflow: hidden;
+    }
+    .gp-head::after {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      width: 205px;
+      height: 205px;
+      right: -38px;
+      top: -72px;
+      border: 1px solid var(--gold-soft);
+      border-radius: 50%;
+      box-shadow: 0 0 0 19px #98773e0d, 0 0 0 20px var(--gold-soft), 0 0 0 54px #98773e08;
+    }
+    .gp-eyebrow {
+      color: var(--gold);
+      font-size: 16px;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+    .gp-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-top: 10px;
+    }
+    .gp-title {
+      min-width: 0;
+      margin: 0;
+      font-family: "WenQuanYi Zen Hei", "GenshinReport", "Songti SC", serif;
+      font-size: 36px;
+      line-height: 1.35;
+      font-weight: 500;
+      overflow-wrap: anywhere;
+    }
+    .gp-period-badge {
+      flex: 0 0 auto;
+      max-width: 220px;
+      padding: 5px 9px;
+      border: 1px solid var(--gold-soft);
+      border-radius: 4px;
+      color: var(--gold);
+      background: var(--panel);
+      font-size: 16px;
+      overflow-wrap: anywhere;
+    }
+    .gp-date { margin-top: 8px; color: var(--muted); font-size: 17px; }
+    .gp-player {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      padding: 12px 30px;
+      border-block: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .gp-player-name { min-width: 0; display: flex; align-items: center; gap: 9px; }
+    .gp-player-mark {
+      flex: 0 0 23px;
+      width: 23px;
+      height: 23px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: var(--gold);
+      background: var(--soft);
+    }
+    .gp-nickname { min-width: 0; overflow-wrap: anywhere; }
+    .gp-uid { max-width: 100%; color: var(--muted); font-size: 16px; overflow-wrap: anywhere; }
+    .gp-summary {
+      display: grid;
+      grid-template-columns: 1.05fr 1.4fr;
+      align-items: center;
+      gap: 22px;
+      padding: 24px 30px 25px;
+    }
+    .gp-hero-label, .gp-metric-label { color: var(--muted); font-size: 16px; }
+    .gp-hero-number {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 2px;
+      color: var(--gold);
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 68px;
+      line-height: 1.13;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
+    .gp-hero-unit { font-family: "GenshinReport", sans-serif; font-size: 20px; }
+    .gp-hero-note { margin-top: 7px; color: var(--gold); font-size: 16px; overflow-wrap: anywhere; }
+    .gp-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      padding-left: 19px;
+      border-left: 1px solid var(--line);
+    }
+    .gp-metric { min-width: 0; }
+    .gp-metric-value {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 28px;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
+    .gp-metric-label { margin-top: 5px; overflow-wrap: anywhere; }
+    .gp-content { padding: 0 24px 22px; }
+    .gp-section-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 7px 14px;
+      margin: 0 6px 12px;
+    }
+    .gp-section-title h3 { margin: 0; font-size: 22px; font-weight: 500; }
+    .gp-section-title span { color: var(--muted); font-size: 16px; }
+    .gp-stars { color: var(--gold); white-space: nowrap; }
+    .gp-floor {
+      margin-top: 12px;
+      padding: 14px 15px 15px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    .gp-floor-head, .gp-chamber-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      overflow-wrap: anywhere;
+    }
+    .gp-floor-head { padding-bottom: 10px; border-bottom: 1px solid var(--line); font-size: 18px; }
+    .gp-chamber { padding-top: 11px; }
+    .gp-chamber + .gp-chamber { margin-top: 11px; border-top: 1px dashed var(--line); }
+    .gp-chamber-head { margin-bottom: 9px; color: var(--muted); font-size: 16px; }
+    .gp-team {
+      display: grid;
+      grid-template-columns: 55px minmax(0, 1fr);
+      align-items: center;
+      gap: 12px;
+    }
+    .gp-team + .gp-team { margin-top: 10px; padding-top: 10px; border-top: 1px solid #ded8c97a; }
+    .gp-team-label { color: var(--muted); font-size: 16px; overflow-wrap: anywhere; }
+    .gp-team-label::before {
+      content: "";
+      display: inline-block;
+      width: 3px;
+      height: 9px;
+      margin-right: 6px;
+      border-radius: 2px;
+      background: var(--gold);
+      vertical-align: -1px;
+    }
+    .gp-team-avatars { display: grid; grid-template-columns: repeat(4, minmax(0, 128px)); justify-content: space-between; gap: 8px; }
+    .gp-avatar { min-width: 0; margin: 0; text-align: center; }
+    .gp-avatar-img {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      border-radius: 7px 7px 3px 3px;
+      border-bottom: 2px solid var(--gold-soft);
+      background: var(--soft);
+    }
+    .gp-avatar-img[data-element="水"] { background: var(--hydro); }
+    .gp-avatar-img[data-element="火"] { background: var(--pyro); }
+    .gp-avatar-img[data-element="雷"] { background: var(--electro); }
+    .gp-avatar-img[data-element="草"] { background: var(--dendro); }
+    .gp-avatar-img[data-element="风"] { background: var(--anemo); }
+    .gp-avatar-img[data-element="岩"] { background: var(--geo); }
+    .gp-avatar-img img { width: 100%; height: 100%; display: block; object-fit: cover; }
+    .gp-avatar-placeholder { color: #4d5964a6; font-family: Georgia, serif; font-size: 38px; }
+    .gp-avatar-name { margin-top: 8px; font-size: 12px; line-height: 1.4; white-space: nowrap; }
+    .gp-acts { display: grid; gap: 9px; }
+    .gp-act {
+      display: grid;
+      grid-template-columns: 68px minmax(0, 1fr);
+      align-items: center;
+      gap: 14px;
+      padding: 11px 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    .gp-act-label { text-align: center; font-size: 16px; overflow-wrap: anywhere; }
+    .gp-medal { display: block; margin-top: 4px; color: var(--gold); font-size: 18px; }
+    .gp-act .gp-team-avatars { grid-template-columns: repeat(4, minmax(0, 128px)); }
+    .gp-act .gp-avatar-img { aspect-ratio: 1.08 / 1; }
+    .gp-challenge { margin-top: 16px; }
+    .gp-challenge-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 6px 14px;
+      margin: 0 6px 10px;
+    }
+    .gp-challenge-label { font-size: 20px; font-weight: 500; }
+    .gp-challenge-summary { color: var(--muted); font-size: 16px; }
+    .gp-bosses { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .gp-boss {
+      display: grid;
+      grid-template-columns: 136px minmax(0, 1fr);
+      align-items: center;
+      gap: 6px 18px;
+      min-width: 0;
+      padding: 18px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    .gp-boss-crest { grid-column: 1; grid-row: 1; width: 61px; height: 61px; display: grid; place-items: center; margin: 0 auto 7px; }
+    .gp-boss-crest-inner {
+      width: 47px;
+      height: 47px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      transform: rotate(45deg);
+      border: 1px solid var(--gold-soft);
+      border-radius: 8px;
+      color: var(--gold);
+      background: var(--soft);
+      font-family: Georgia, serif;
+      font-size: 28px;
+    }
+    .gp-boss-crest img { width: 100%; height: 100%; object-fit: cover; transform: rotate(-45deg) scale(1.42); }
+    .gp-boss-name { grid-column: 1; grid-row: 2; min-height: 38px; display: grid; place-items: center; text-align: center; font-size: 16px; line-height: 1.55; overflow-wrap: anywhere; }
+    .gp-boss-time { grid-column: 1; grid-row: 3; min-height: 36px; color: var(--ink); text-align: center; font-family: Georgia, "Times New Roman", serif; font-size: 32px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+    .gp-boss .gp-team-avatars { grid-column: 2; grid-row: 1 / 4; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .gp-boss .gp-avatar-img { aspect-ratio: 1 / 1; }
+    .gp-empty { margin: 5px 0 12px; padding: 25px 16px; border: 1px dashed var(--line); border-radius: 7px; color: var(--muted); text-align: center; background: var(--panel); }
+    .gp-highlights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 17px 5px 0; }
+    .gp-highlight { min-width: 0; padding-top: 10px; border-top: 1px solid var(--line); }
+    .gp-highlight-label { color: var(--muted); font-size: 15px; overflow-wrap: anywhere; }
+    .gp-highlight-value { margin-top: 5px; font-size: 18px; font-weight: 500; overflow-wrap: anywhere; }
+    .gp-highlight-note { display: block; margin-top: 2px; color: var(--muted); font-size: 15px; font-weight: 400; }
+    .gp-notes { margin: 16px 5px 0; padding: 11px 13px; border-left: 2px solid var(--gold-soft); color: var(--muted); background: #eee9de80; }
+    .gp-notes p { margin: 0; overflow-wrap: anywhere; }
+    .gp-notes p + p { margin-top: 5px; }
+    .gp-foot {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 7px 15px;
+      padding: 15px 30px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 15px;
+    }
+    .gp-foot-brand { color: var(--gold); }
+    .gp-region-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .gp-region-name { min-width: 0; font-size: 23px; font-weight: 500; overflow-wrap: anywhere; }
+    .gp-region-percent { color: var(--gold); font: 34px Georgia, serif; white-space: nowrap; }
+    .gp-region-percent small { font-size: 18px; }
+    .gp-progress { height: 7px; border-radius: 5px; background: var(--soft); margin-top: 10px; overflow: hidden; }
+    .gp-progress-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #c8b17f, var(--gold)); }
+    .gp-offerings { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; color: var(--muted); font-size: 16px; }
+    .gp-explore-children { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 22px; margin-top: 14px; padding-top: 13px; border-top: 1px dashed var(--line); }
+    .gp-child-label { display: flex; justify-content: space-between; gap: 8px; font-size: 16px; }
+    .gp-child-label span:first-child { overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <article class="gp-report">
+    <header class="gp-head">
+      {% if report.eyebrow %}<div class="gp-eyebrow">{{ report.eyebrow }}</div>{% endif %}
+      <div class="gp-title-row">
+        <h1 class="gp-title">{{ report.title }}</h1>
+        {% if report.period_label %}<span class="gp-period-badge">{{ report.period_label }}</span>{% endif %}
+      </div>
+      {% if report.date_range %}<div class="gp-date">{{ report.date_range }}</div>{% endif %}
+    </header>
+    <div class="gp-player">
+      <div class="gp-player-name"><span class="gp-player-mark" aria-hidden="true">✦</span><span class="gp-nickname">{{ report.nickname }}</span></div>
+      {% if report.uid %}<div class="gp-uid">UID {{ report.uid }}</div>{% endif %}
+    </div>
+    {% if report.hero.label or report.hero.value or report.metrics %}
+    <section class="gp-summary">
+      <div class="gp-hero">
+        {% if report.hero.label %}<div class="gp-hero-label">{{ report.hero.label }}</div>{% endif %}
+        {% if report.hero.value %}<div class="gp-hero-number">{{ report.hero.value }}{% if report.hero.unit %}<span class="gp-hero-unit">{{ report.hero.unit }}</span>{% endif %}</div>{% endif %}
+        {% if report.hero.note %}<div class="gp-hero-note">{{ report.hero.note }}</div>{% endif %}
+      </div>
+      {% if report.metrics %}<div class="gp-metrics">{% for metric in report.metrics %}<div class="gp-metric"><div class="gp-metric-value">{{ metric.value }}</div><div class="gp-metric-label">{{ metric.label }}</div></div>{% endfor %}</div>{% endif %}
+    </section>
+    {% endif %}
+    <main class="gp-content">
+      {% if report.kind == 'exploration' %}
+        <div class="gp-section-title"><h3>地区探索</h3><span>探索进度 · 供奉等级</span></div>
+        {% for region in report.regions %}
+        <section class="gp-floor gp-region">
+          <div class="gp-region-head"><strong class="gp-region-name">{{ region.name }}</strong><span class="gp-region-percent">{% if region.available %}{{ region.percentage }}<small>%</small>{% else %}—{% endif %}</span></div>
+          <div class="gp-progress"><div class="gp-progress-fill" style="width: {{ region.progress }}%"></div></div>
+          {% if region.offerings %}<div class="gp-offerings">{% for offering in region.offerings %}<span>{{ offering.name }} · {% if offering.level is not none %}{{ offering.level }} 级{% else %}—{% endif %}</span>{% endfor %}</div>{% endif %}
+          {% if region.children %}<div class="gp-explore-children">{% for child in region.children %}<div><div class="gp-child-label"><span>{{ child.name }}</span><span>{% if child.available %}{{ child.percentage }}%{% else %}—{% endif %}</span></div><div class="gp-progress"><div class="gp-progress-fill" style="width: {{ child.progress }}%"></div></div></div>{% endfor %}</div>{% endif %}
+        </section>
+        {% else %}<div class="gp-empty">{{ report.empty_message }}</div>{% endfor %}
+      {% elif report.kind == 'abyss' %}
+        {% if report.floors %}
+          <div class="gp-section-title"><h3>通关记录</h3><span>每间分列上半与下半阵容</span></div>
+          {% for floor in report.floors %}
+          <section class="gp-floor">
+            <div class="gp-floor-head"><strong>第 {{ floor.index }} 层</strong><span class="gp-stars">{% if floor.star is not none and floor.max_star is not none %}{{ floor.star }} / {{ floor.max_star }}　{{ '★' * floor.star }}{{ '☆' * (floor.max_star - floor.star) }}{% endif %}</span></div>
+            {% for chamber in floor.chambers %}
+            <div class="gp-chamber">
+              <div class="gp-chamber-head"><span>第 {{ chamber.index }} 间</span><span class="gp-stars">{% if chamber.star is not none and chamber.max_star is not none %}{{ chamber.star }} / {{ chamber.max_star }}　{{ '★' * chamber.star }}{{ '☆' * (chamber.max_star - chamber.star) }}{% endif %}</span></div>
+              {% for team in chamber.teams %}
+              <div class="gp-team">
+                <div class="gp-team-label">{{ team.label or ('队伍 ' ~ loop.index) }}</div>
+                <div class="gp-team-avatars">{% for avatar in team.avatars %}{{ avatar_card(avatar) }}{% endfor %}</div>
+              </div>
+              {% endfor %}
+            </div>
+            {% endfor %}
+          </section>
+          {% endfor %}
+        {% else %}<div class="gp-empty">{{ report.empty_message or '暂无分间详情' }}</div>{% endif %}
+      {% elif report.kind == 'theater' %}
+        {% if report.acts %}
+          <div class="gp-section-title"><h3>演出阵容</h3><span>每幕单独列出出战角色</span></div>
+          <div class="gp-acts">
+            {% for act in report.acts %}
+            <section class="gp-act">
+              <div class="gp-act-label">{{ act.label or ('第 ' ~ loop.index ~ ' 幕') }}{% if act.medal %}<span class="gp-medal" aria-label="获得徽章">✦</span>{% endif %}</div>
+              <div class="gp-team-avatars">{% for avatar in act.avatars %}{{ avatar_card(avatar) }}{% endfor %}</div>
+            </section>
+            {% endfor %}
+          </div>
+        {% else %}<div class="gp-empty">{{ report.empty_message or '暂无分幕详情' }}</div>{% endif %}
+      {% elif report.kind == 'stygian' %}
+        {% set challenge_state = namespace(has_bosses=false) %}
+        {% for challenge in report.challenges %}{% if challenge.bosses %}{% set challenge_state.has_bosses = true %}{% endif %}{% endfor %}
+        {% if report.challenges and challenge_state.has_bosses %}
+          {% for challenge in report.challenges %}
+          <section class="gp-challenge">
+            <div class="gp-challenge-head"><strong class="gp-challenge-label">{{ challenge.label }}</strong>{% if challenge.summary %}<span class="gp-challenge-summary">{{ challenge.summary }}</span>{% endif %}</div>
+            {% if challenge.bosses %}
+            <div class="gp-bosses">
+              {% for boss in challenge.bosses %}
+              <article class="gp-boss">
+                <div class="gp-boss-crest"><span class="gp-boss-crest-inner">{% if boss.icon %}<img src="{{ boss.icon }}" alt="">{% else %}✦{% endif %}</span></div>
+                <div class="gp-boss-name">{{ boss.name }}</div>
+                {% if boss.second %}<div class="gp-boss-time">{{ boss.second }}</div>{% endif %}
+                {% if boss.avatars %}<div class="gp-team-avatars">{% for avatar in boss.avatars %}{{ avatar_card(avatar) }}{% endfor %}</div>{% endif %}
+              </article>
+              {% endfor %}
+            </div>
+            {% elif not challenge.summary %}<div class="gp-empty">{{ report.empty_message or '暂无首领挑战详情' }}</div>{% endif %}
+          </section>
+          {% endfor %}
+        {% else %}<div class="gp-empty">{{ report.empty_message or '暂无幽境危战记录' }}</div>{% endif %}
+      {% else %}
+        <div class="gp-empty">{{ report.empty_message or '暂无战绩记录' }}</div>
+      {% endif %}
+      {% if report.highlights %}
+      <section class="gp-highlights" aria-label="表现摘要">
+        {% for item in report.highlights %}<div class="gp-highlight"><div class="gp-highlight-label">{{ item.label }}</div><div class="gp-highlight-value">{{ item.value }}{% if item.note %}<span class="gp-highlight-note">{{ item.note }}</span>{% endif %}</div></div>{% endfor %}
+      </section>
+      {% endif %}
+      {% if report.notes %}<aside class="gp-notes">{% for note in report.notes %}<p>{{ note }}</p>{% endfor %}</aside>{% endif %}
+    </main>
+    <footer class="gp-foot"><span class="gp-foot-brand">真寻 · {% if report.kind == 'exploration' %}原神探索{% else %}原神战绩{% endif %}</span><span>数据来源：米游社</span></footer>
+  </article>
+</body>
+</html>

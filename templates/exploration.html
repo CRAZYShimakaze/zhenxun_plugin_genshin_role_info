@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base href="{{ static_base }}">
+  <style>
+    @font-face { font-family:Genshin; src:url("{{ font_uri }}") format("truetype"); font-display:block; }
+    * { box-sizing:border-box; }
+    :root { --paper:#f9f6f2; --panel:#e3dbd1; --ink:#3c4246; --muted:#77776f; --gold:#a38a58; --navy:#3a4467; }
+    html, body { margin:0; width:100%; background:#d4c8b7; }
+    body { color:var(--ink); font:18px/1.5 Genshin,"Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; }
+    .ys-card { width:min(1000px,100%); margin:auto; padding:28px; border:14px solid #d4c8b7; border-radius:32px; background:var(--paper); }
+    .ys-header { display:flex; justify-content:space-between; align-items:baseline; gap:18px; padding:3px 0 16px; border-top:5px solid #b5a17e; }
+    h1 { font-size:32px; font-weight:500; margin:14px 0 0; }
+    .ys-date { color:var(--muted); font-size:13px; text-align:right; }
+    .ys-profile { display:grid; grid-template-columns:210px minmax(0,1fr); gap:24px; padding:27px 24px; background:var(--panel); border-radius:22px; }
+    .ys-identity { display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:0; text-align:center; }
+    .ys-avatar { width:112px; height:112px; display:grid; place-items:center; margin-bottom:14px; border:7px double #bdab83; border-radius:50%; color:#f9f6f2; background:#6c887d; font-size:50px; }
+    .ys-name { max-width:100%; margin:0; font-size:27px; overflow-wrap:anywhere; }
+    .ys-uid { color:#4c7b65; font-size:18px; overflow-wrap:anywhere; }
+    .ys-level { margin-top:7px; color:var(--muted); font-size:14px; }
+    .ys-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:20px 10px; align-content:center; }
+    .ys-stat { min-width:0; text-align:center; }
+    .ys-value { font-size:27px; line-height:1.3; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+    .ys-label { margin-top:4px; font-size:14px; color:var(--muted); }
+    .ys-oculi { grid-column:1/-1; display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:12px 4px; padding:20px 8px 0; margin-top:0; border-top:1px solid #c9bfb0; }
+    .ys-oculus { text-align:center; min-width:0; }
+    .ys-oculus .ys-value { font-size:24px; }
+    .ys-oculus .ys-label { font-size:13px; }
+    .anemo {color:#508779}.geo {color:#a88338}.electro {color:#88709c}.dendro {color:#6d8446}.hydro {color:#527f9a}.pyro {color:#ab6a4f}.moon {color:#8a7794}.cryo {color:#6c989e}
+    .ys-body { display:grid; grid-template-columns:250px minmax(0,1fr); gap:24px; align-items:start; margin-top:28px; }
+    .ys-homes { padding:22px 18px; background:var(--panel); border-radius:20px; }
+    .ys-section-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:0 0 15px; }
+    h2 { margin:0; font-size:25px; font-weight:500; }
+    .ys-home-head { text-align:center; }
+    .ys-home-head h2 { font-size:25px; }
+    .ys-home-comfort { color:#8a744d; margin-top:7px; font-size:20px; }
+    .ys-home-rank { margin:2px 0 18px; color:var(--muted); font-size:14px; }
+    .ys-realm { position:relative; min-height:112px; display:flex; flex-direction:column; justify-content:flex-end; overflow:hidden; margin:12px 0; border-radius:13px; background:#80968b; }
+    .ys-realm:nth-child(3n+2) { background:#a58e6b; }
+    .ys-realm:nth-child(3n) { background:#9391a0; }
+    .ys-realm img { display:block; width:100%; height:130px; object-fit:cover; }
+    .ys-realm-empty { position:absolute; inset:15px; display:grid; place-items:center; border:1px solid #ffffff40; color:#ffffff66; font-size:45px; }
+    .ys-realm-name { position:relative; padding:9px 12px; color:#faf7ee; background:#263a3473; font-size:18px; }
+    .ys-realm img + .ys-realm-name { position:absolute; inset:auto 0 0; }
+    .ys-home-meta { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px; padding-top:16px; border-top:1px solid #c9bfb0; text-align:center; }
+    .ys-home-meta .ys-value { font-size:23px; }
+    .ys-regions { min-width:0; }
+    .ys-region-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .ys-region-count { color:var(--muted); font-size:14px; text-align:right; }
+    .ys-region { min-width:0; background:var(--navy); border:5px solid #454e70; border-radius:16px; padding:15px; color:#f9f6ef; }
+    .ys-region-head { display:grid; grid-template-columns:38px minmax(0,1fr); align-items:center; gap:12px 10px; min-width:0; height:100%; }
+    .ys-region-icon { width:38px; height:38px; display:grid; place-items:center; border-radius:50%; background:#ffffff14; color:#e8d9b6; font-size:23px; }
+    .ys-region-icon img { width:34px; height:34px; object-fit:contain; }
+    .ys-region-main { min-width:0; }
+    .ys-region-name { font-size:19px; line-height:1.4; overflow-wrap:anywhere; }
+    .ys-percent { grid-column:1/-1; display:flex; align-items:baseline; justify-content:space-between; gap:6px; color:#efd992; font-size:32px; line-height:1.2; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .ys-percent small { font-size:17px; }
+    .ys-percent-label { font-size:12px; color:#c6c9d3; }
+    .ys-empty { padding:22px 10px; color:var(--muted); font-size:15px; text-align:center; }
+    .ys-footer { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px 18px; margin-top:24px; padding-top:17px; border-top:1px solid #d6cabb; color:#8b806e; font-size:12px; }
+    .ys-footer strong { font-weight:500; font-size:15px; }
+    @media(max-width:700px) {
+      .ys-card { padding:18px; border-width:8px; }
+      h1 { font-size:25px; }
+      .ys-header { flex-wrap:wrap; gap:4px; }
+      .ys-date { text-align:left; }
+      .ys-profile { grid-template-columns:1fr; padding:20px 15px; gap:22px; }
+      .ys-identity { flex-direction:row; gap:15px; flex-wrap:wrap; }
+      .ys-avatar { width:65px; height:65px; margin:0; font-size:28px; }
+      .ys-name { font-size:23px; }
+      .ys-value { font-size:23px; }
+      .ys-oculi { grid-template-columns:repeat(4,minmax(0,1fr)); }
+      .ys-body { grid-template-columns:1fr; }
+      .ys-realms { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+      .ys-realm { margin:0; }
+      .ys-region-grid { gap:10px; }
+      .ys-region { padding:11px; }
+      .ys-region-name { font-size:18px; }
+      .ys-percent { font-size:29px; }
+    }
+    @media(max-width:400px) {
+      .ys-region-grid { gap:8px; }
+      .ys-region { padding:9px; border-width:4px; border-radius:12px; }
+      .ys-region-head { grid-template-columns:26px minmax(0,1fr); gap:10px 6px; }
+      .ys-region-icon { width:26px; height:26px; font-size:17px; }
+      .ys-region-icon img { width:24px; height:24px; }
+      .ys-region-name { font-size:14px; }
+      .ys-percent { font-size:24px; gap:3px; }
+      .ys-percent-label { font-size:10px; }
+      .ys-percent small { font-size:13px; }
+    }
+  </style>
+</head>
+<body>
+<article class="ys-card">
+  <header class="ys-header"><h1>原神探索度</h1><div class="ys-date">{{ report.updated_at }}</div></header>
+  <section class="ys-profile">
+    <div class="ys-identity"><div class="ys-avatar" aria-hidden="true">旅</div><div><h2 class="ys-name">{{ report.nickname }}</h2><div class="ys-uid">UID {{ report.uid }}</div>{% if report.player_level != '—' %}<div class="ys-level">冒险等阶 {{ report.player_level }}</div>{% endif %}</div></div>
+    <div class="ys-stats">{% for stat in report.player_stats %}<div class="ys-stat"><div class="ys-value">{{ stat.value }}</div><div class="ys-label">{{ stat.label }}</div></div>{% endfor %}</div>
+    {% if report.oculi %}<div class="ys-oculi">{% for oculus in report.oculi %}<div class="ys-oculus {{ oculus.element }}"><div class="ys-value">{{ oculus.value }}</div><div class="ys-label">{{ oculus.label }}</div></div>{% endfor %}</div>{% endif %}
+  </section>
+  <main class="ys-body">
+    <aside class="ys-homes">
+      <div class="ys-home-head"><h2>尘歌壶 <small>Lv.{{ report.homes.level }}</small></h2>{% if report.homes.available %}<div class="ys-home-comfort">仙力 {{ report.homes.comfort }}</div><div class="ys-home-rank">{{ report.homes.comfort_name }}</div>{% endif %}</div>
+      {% if report.homes.available %}
+        <div class="ys-realms">{% for realm in report.homes.realms %}<div class="ys-realm">{% if realm.icon %}<img src="{{ realm.icon }}" alt="{{ realm.name }}">{% else %}<span class="ys-realm-empty" aria-hidden="true">{{ realm.name[:1] }}</span>{% endif %}<div class="ys-realm-name">{{ realm.name }}</div></div>{% else %}<div class="ys-empty">暂无洞天信息</div>{% endfor %}</div>
+        <div class="ys-home-meta"><div><div class="ys-value">{{ report.homes['items'] }}</div><div class="ys-label">获得摆设</div></div><div><div class="ys-value">{{ report.homes.visitors }}</div><div class="ys-label">历史访客</div></div></div>
+      {% else %}<div class="ys-empty">暂无尘歌壶数据</div>{% endif %}
+    </aside>
+    <section class="ys-regions">
+      <div class="ys-section-head"><h2>地区探索</h2><div class="ys-region-count">{{ report.completed }} / {{ report.total }} 地区达到 100%</div></div>
+      <div class="ys-region-grid">
+      {% for region in report.regions %}
+      <section class="ys-region">
+        <div class="ys-region-head"><div class="ys-region-icon">{% if region.icon %}<img src="{{ region.icon }}" alt="">{% else %}{{ region.name[:1] }}{% endif %}</div><div class="ys-region-main"><div class="ys-region-name">{{ region.name }}</div></div><div class="ys-percent"><span class="ys-percent-label">探索进度</span><span>{% if region.available %}{{ region.percentage }}<small>%</small>{% else %}—{% endif %}</span></div></div>
+      </section>
+      {% else %}<div class="ys-empty">{{ report.empty_message }}</div>{% endfor %}
+      </div>
+    </section>
+  </main>
+  <footer class="ys-footer"><strong>真寻 · 原神探索</strong><span>数据来源：米游社 · 100% 不代表已收集全部宝箱</span></footer>
+</article>
+</body>
+</html>

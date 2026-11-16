@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from collections import Counter
 import re
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -187,6 +188,11 @@ class _ParamsView:
 
     def __getitem__(self, name: str) -> Any:
         return self._context.params.get(name, _JS_UNDEFINED)
+
+
+class _ArtifactView(Counter):
+    def __getattr__(self, name: str) -> int:
+        return self[name]
 
 
 class _WeaponView:
@@ -913,6 +919,7 @@ def compile_js_function(source: str) -> Callable[..., Any]:
     function_source += "    talent = _TalentView(context)\n"
     function_source += "    params = _ParamsView(context)\n"
     function_source += "    weapon = _WeaponView(context)\n"
+    function_source += "    artis = _ArtifactView(item.get('所属套装', '') for item in context.artifacts)\n"
     function_source += "    cons = context.cons\n"
     function_source += "    level = context.level\n"
     function_source += "    refine = max(0, int(context.weapon.get('精炼等级', 1)) - 1)\n"
@@ -940,6 +947,7 @@ def compile_js_function(source: str) -> Callable[..., Any]:
         "_TalentView": _TalentView,
         "_ParamsView": _ParamsView,
         "_WeaponView": _WeaponView,
+        "_ArtifactView": _ArtifactView,
         "_calc_value": _calc_value,
         "_step": _step,
         "_js_floor": _js_floor,
@@ -979,6 +987,8 @@ class DamageMethods:
         dynamic_data: dict[str, Any] | bool = False,
         params: dict[str, Any] | bool = False,
     ) -> DamageResult:
+        if isinstance(params, _ParamsView):
+            params = dict(params._context.params)
         data = dynamic_data if isinstance(dynamic_data, dict) else {}
         tokens = element.split(",") if isinstance(element, str) else []
         physical = "phy" in tokens

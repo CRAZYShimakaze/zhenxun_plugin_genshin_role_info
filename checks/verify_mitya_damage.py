@@ -53,7 +53,7 @@ def verify_damage(cons, refine, mastery):
     expected_count = 7 if cons >= 4 else 5
     result = get_role_dmg(data)
     assert result is not None
-    assert len(result) == expected_count + 1
+    assert len(result) == expected_count + 2
 
     for index, detail in enumerate(rule.details[:expected_count]):
         active = context.clone(detail.params)
@@ -97,6 +97,7 @@ def verify_damage(cons, refine, mastery):
         assert result[detail.title] == damage.display()
 
     assert not any("稳态炉心存在" in note for note in result["额外说明"])
+    assert any("砂糖" in note for note in result["额外说明"])
 
 
 def verify_talent_level(level):
@@ -104,12 +105,48 @@ def verify_talent_level(level):
     data["天赋"] = [{"等级": level}] * 3
     result = get_role_dmg(data)
     assert result is not None
-    assert len(result) == 8
+    assert len(result) == 9
     assert all(float(values[0]) > 0 for title, values in result.items() if title != "额外说明")
-    assert get_rule("瓦列里") is None
+    assert get_rule("瓦列里") is not None
 
 
 class MityaDamageTests(unittest.TestCase):
+    def test_fixed_team_buffs_and_damage(self):
+        rule = get_rule("米提亚")
+        self.assertEqual(rule.default_detail, 7)
+        detail = rule.details[7]
+        for cons in range(7):
+            for refine in range(1, 6):
+                for artifact in ("", "教官", "炉火融炼之心"):
+                    with self.subTest(cons=cons, refine=refine, artifact=artifact):
+                        data = profile(cons, 0, 300)
+                        data["武器"] = {"名称": "千夜浮梦", "精炼等级": refine}
+                        data["圣遗物"] = [{"所属套装": artifact}] * 4 if artifact else []
+                        active = build_context(data).clone(detail.params)
+                        # Isolate character/team rules from the wearer's equipment buffs.
+                        for buff in sorted(rule.buffs, key=lambda buff: buff.sort):
+                            if cons >= buff.cons and buff.check(active):
+                                buff.apply(active)
+                        mastery = (300 + (234 if cons >= 2 else 0) + 100
+                                   + (0 if artifact == "教官" else 120)
+                                   + 32 + (refine - 1) * 8
+                                   + 50 + (900 + 100 + 120 + (234 if cons >= 2 else 0)
+                                           + 40 + (refine - 1) * 2) * .2)
+                        self.assertAlmostEqual(active.attr.mastery, mastery)
+                        self.assertEqual(active.attr.cpct, 80)
+                        cdmg = 140 + (40 if cons >= 1 else 0)
+                        self.assertEqual(active.attr.cdmg, cdmg)
+                        bonus = 60 + (0 if artifact == "炉火融炼之心" else 50)
+                        self.assertEqual(active.attr.reaction_bonus["stellarConduct"], bonus)
+                        expected = (mastery * 4.032 * 1.28 * 1.7
+                                    * (1 + 6 * mastery / (mastery + 2000) + bonus / 100)
+                                    + 1800 * 2.6292)
+                        expected *= (1.2 if cons == 6 else 1) * (1.25 if cons >= 2 else 1.15)
+                        calculated = detail.calculate(active, DamageMethods(
+                            active, DamageCalculator(active.attr, 90, "雷")))
+                        self.assertTrue(isclose(calculated.avg, expected * (1 + .8 * cdmg / 100)))
+                        self.assertTrue(isclose(calculated.crit, expected * (1 + cdmg / 100)))
+
     def test_constellations_weapons_and_mastery(self):
         for cons in (0, 1, 2, 4, 6):
             for refine in (0, 1, 5):

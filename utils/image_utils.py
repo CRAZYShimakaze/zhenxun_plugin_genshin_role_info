@@ -1,5 +1,6 @@
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import urlparse
 
 from nonebot.adapters.onebot.v11 import MessageSegment
 from PIL import Image
@@ -109,7 +110,14 @@ async def get_img(
     crop: tuple[int, int, int, int] | None = None,
     **kwargs,
 ) -> str | Image.Image:
-    if save_path:
+    # Bundled Miao resources also cover characters absent from Enka's UI store.
+    bundled = (
+        Path(__file__).resolve().parents[1] / "res/miao_images"
+        / f"{Path(urlparse(url).path).stem}.webp"
+    )
+    if bundled.is_file():
+        img = _open_image(bundled)
+    elif save_path:
         path = Path(save_path)
         try:
             img = _open_image(path)

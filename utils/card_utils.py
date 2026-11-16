@@ -28,6 +28,7 @@ reli_path = data_res_path + "reli"
 font_path = card_res_path + "fonts"
 # weapon = load_json(path=f"{json_path}/weapon.json")
 weapon_loc = load_json(path=f"{json_path}/locs.json")
+panel_weapons = load_json(path=f"{json_path}/miao_panel_weapons.json")["weapons"]
 prop_list = {
     "FIGHT_PROP_BASE_ATTACK": "基础攻击力",
     "FIGHT_PROP_BASE_DEFENSE": "基础防御力",
@@ -364,8 +365,15 @@ class PlayerInfo:
 
             weapon_info = {}
             weapon_data = data["equipList"][-1]
-            weapon_info["名称"] = weapon_loc["zh-cn"][weapon_data["flat"]["nameTextMapHash"]]
-            weapon_info["图标"] = weapon_data["flat"]["icon"]
+            panel_weapon = panel_weapons.get(str(weapon_data.get("itemId", "")))
+            weapon_info["名称"] = (
+                panel_weapon["name"] if panel_weapon else
+                weapon_loc["zh-cn"][weapon_data["flat"]["nameTextMapHash"]]
+            )
+            weapon_info["图标"] = (
+                f"Miao_Weapon_{panel_weapon['id']}" if panel_weapon else
+                weapon_data["flat"]["icon"]
+            )
             # weapon_info["类型"] = weapon["Type"][weapon_info["名称"]]
             weapon_info["等级"] = weapon_data["weapon"]["level"]
             weapon_info["星级"] = weapon_data["flat"]["rankLevel"]
