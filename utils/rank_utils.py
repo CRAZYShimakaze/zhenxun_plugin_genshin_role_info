@@ -34,12 +34,19 @@ def select_damage_metric(
     return title, expected, critical
 
 
+def _rank_level(role_data: Mapping[str, object]) -> int | None:
+    ranks = role_data.get("命座")
+    return len(ranks) if isinstance(ranks, list) else None
+
+
 def collect_damage_titles(
     members: Iterable[Mapping[str, object]],
     uid_map: Mapping[str, object],
     player_info_dir: str | Path,
     role_name: str,
     damage_calculator: DamageCalculator,
+    *,
+    rank_filter: int | None = None,
 ) -> list[str]:
     """Find the rendered damage item names for one cached group role."""
     if not isinstance(uid_map, Mapping):
@@ -67,6 +74,8 @@ def collect_damage_titles(
         roles = payload.get("角色") if isinstance(payload, Mapping) else None
         role_data = roles.get(role_name) if isinstance(roles, Mapping) else None
         if not isinstance(role_data, Mapping):
+            continue
+        if rank_filter is not None and _rank_level(role_data) != rank_filter:
             continue
         try:
             damage = damage_calculator(role_data)
@@ -126,22 +135,20 @@ def build_rank_entry(
         ("元素充能效率", _percent(properties.get("元素充能效率"))),
     ]
 
-    constellations = role_data.get("命座")
-    rank = len(constellations) if isinstance(constellations, list) else 0
     weapon = role_data.get("武器")
-    weapon_info = (
-        {
+    weapon_info: dict[str, object] = {}
+    if isinstance(weapon, Mapping):
+        weapon_info = {
             "星级": weapon.get("星级", 1),
             "图标": weapon.get("图标", ""),
             "图标链接": weapon.get("图标链接", ""),
         }
-        if isinstance(weapon, Mapping)
-        else {}
-    )
+        if metric == "伤害":
+            weapon_info["精炼等级"] = weapon.get("精炼等级")
     return {
         "qq": qq,
         "nickname": nickname,
-        "rank": rank,
+        "rank": _rank_level(role_data) or 0,
         "value": value,
         "rows": rows,
         "weapon": weapon_info,
@@ -158,6 +165,8 @@ def collect_role_rank_entries(
     damage_calculator: DamageCalculator | None = None,
     damage_index: int | None = None,
     limit: int = 16,
+    *,
+    rank_filter: int | None = None,
 ) -> list[RankEntry]:
     entries: list[RankEntry] = []
     player_info_dir = Path(player_info_dir)
@@ -181,6 +190,12 @@ def collect_role_rank_entries(
         roles = payload.get("角色")
         if not isinstance(roles, Mapping) or not isinstance(
             role_data := roles.get(role_name), dict
+        ):
+            continue
+        if (
+            metric == "伤害"
+            and rank_filter is not None
+            and _rank_level(role_data) != rank_filter
         ):
             continue
         damage = (

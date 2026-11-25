@@ -1,4 +1,4 @@
-"""Verify November 14 rules without loading the bot or changing player data."""
+"""Verify synced rules without loading the bot or changing player data."""
 
 import importlib
 import math
@@ -59,11 +59,17 @@ class November14SyncChecks(unittest.TestCase):
         self.assertIsNotNone(rule)
         self.assertEqual(rule.default_detail, 1)
         # Independent values from the upstream level 1 / 10 / 15 tables.
-        values = {1: (2.292, 2.089, 1309.64),
-                  10: (4.1256, 3.7601, 2881.42),
-                  15: (5.4435, 4.9613, 4136.67)}
+        values = {
+            1: (2.292, 2.089, 1309.64, 0.2432, 0.7296),
+            10: (4.1256, 3.7601, 2881.42, 0.4378, 1.3133),
+            15: (5.4435, 4.9613, 4136.67, 0.5776, 1.7328),
+        }
+        self.assertEqual(
+            [detail.title for detail in rule.details[2:]],
+            ["雷元素伤害增加", "星超导反应伤害增加"],
+        )
         for cons in range(7):
-            for level, (charged, shield_pct, shield_flat) in values.items():
+            for level, (charged, shield_pct, shield_flat, electro, stellar) in values.items():
                 for attack in (1000, 2500):
                     with self.subTest(cons=cons, level=level, attack=attack):
                         data = profile(cons, 0, 0)
@@ -84,9 +90,40 @@ class November14SyncChecks(unittest.TestCase):
                                 base = attack * charged * (2 if cons == 6 else 1) * 190 / 393 * .9
                                 self.assertTrue(math.isclose(calculated.avg, base * 1.5))
                                 self.assertTrue(math.isclose(calculated.crit, base * 2))
-                            else:
+                            elif index == 1:
                                 self.assertTrue(math.isclose(calculated.avg, attack * shield_pct + shield_flat))
+                            else:
+                                multiplier = electro if index == 2 else stellar
+                                self.assertTrue(math.isclose(calculated.avg, attack * multiplier))
+                                self.assertIsNone(calculated.crit)
                             self.assertEqual(result[detail.title], calculated.display())
+
+    def test_alyosha_default_detail_is_burst_healing(self):
+        rule = get_rule("阿罗夏")
+        self.assertEqual(rule.details[rule.default_detail].title, "Q每跳治疗量")
+
+    def test_gilded_dreams_team_composition(self):
+        for params, mastery, atk_pct in (
+            ({}, 100, 14),
+            ({"mArtisDiffCount": 0}, 100, 14),
+            ({"mArtisDiffCount": 1}, 50, 28),
+            ({"mArtisDiffCount": 2}, 100, 14),
+            ({"mArtisDiffCount": 3}, 150, 0),
+        ):
+            with self.subTest(params=params):
+                data = profile(0, 0, 300)
+                data["圣遗物"] = [{"所属套装": "饰金之梦"} for _ in range(4)]
+                context = build_context(data).clone(params)
+                notes = apply_common_buffs(context)
+                self.assertEqual(context.attr.mastery, 300 + mastery)
+                self.assertEqual(context.attr.atk_pct, atk_pct)
+                count = mastery // 50
+                self.assertEqual(
+                    notes,
+                    [f"饰金之梦4：队伍存在{count:.1f}个不同元素类型角色，"
+                     f"{3 - count:.1f}个相同类型角色，精通提高{mastery:.1f}，"
+                     f"攻击力提高{atk_pct:.1f}%"],
+                )
 
 
 if __name__ == "__main__":

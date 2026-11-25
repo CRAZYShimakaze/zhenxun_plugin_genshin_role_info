@@ -7,7 +7,9 @@ from .miao_runtime import DamageMethods
 from .rules import get_rule
 
 
-def _calculate_new(data: dict) -> dict[str, tuple[str, ...]] | None:
+def _calculate_new(
+    data: dict, *, default_only: bool = False
+) -> dict[str, tuple[str, ...]] | None:
     rule = get_rule(data["名称"], data.get("元素"))
     if rule is None:
         return None
@@ -22,11 +24,20 @@ def _calculate_new(data: dict) -> dict[str, tuple[str, ...]] | None:
     default_notes: list[str] | None = None
     fallback_notes: list[str] | None = None
     for detail_index, base_detail in enumerate(rule.details):
+        if default_only and not rule.default_damage_key and detail_index > rule.default_detail:
+            break
         detail = (
             base_detail.factory(context)
             if base_detail.factory is not None
             else base_detail
         )
+        is_default = (
+            detail.damage_key == rule.default_damage_key
+            if rule.default_damage_key
+            else detail_index == rule.default_detail
+        )
+        if default_only and detail.is_static:
+            continue
         detail_params = dict(detail.params)
         if detail.params_factory is not None:
             detail_params.update(detail.params_factory(context))
@@ -43,10 +54,13 @@ def _calculate_new(data: dict) -> dict[str, tuple[str, ...]] | None:
         try:
             # Miao detail functions receive the damage method facade (`dmg`,
             # `basic`, `heal`, ...), not the low-level calculator itself.
-            output[detail.title] = detail.calculate(
+            result = detail.calculate(
                 detail_context,
                 DamageMethods(detail_context, calc),
-            ).display()
+            )
+            if default_only and is_default:
+                return {detail.title: result.display()} if result.text is None else None
+            output[detail.title] = result.display()
             if fallback_notes is None:
                 fallback_notes = detail_notes
             if detail_index == rule.default_detail:
@@ -57,15 +71,17 @@ def _calculate_new(data: dict) -> dict[str, tuple[str, ...]] | None:
         except Exception as error:
             print(f"Miao damage detail failed for {data.get('名称')}:{detail.title}: {error}")
 
+    if default_only:
+        return None
     notes = default_notes if default_notes is not None else fallback_notes
     if notes:
         output["额外说明"] = tuple(notes)
     return output or None
 
 
-def get_role_dmg(data: dict):
+def get_role_dmg(data: dict, *, default_only: bool = False):
     try:
-        return _calculate_new(data)
+        return _calculate_new(data, default_only=default_only)
     except Exception as error:
         print(f"Miao Python damage calculation failed for {data.get('名称')}: {error}")
         return None

@@ -87,6 +87,8 @@ def _make_detail(raw: dict[str, Any]) -> DamageDetail:
         cons=int(raw.get("cons", 0) or 0),
         params_factory=params_factory,
         talent=str(raw.get("talent", raw.get("dmgKey", "")) or ""),
+        damage_key=str(raw.get("dmgKey") or ""),
+        is_static=bool(raw.get("isStatic")),
     )
 
 
@@ -342,6 +344,7 @@ def _build_rule(name: str, raw: dict[str, Any]) -> CharacterRule:
         default_params=default_params,
         default_detail=int(raw.get("defDmgIdx", 0) or 0),
         created_by=str(raw.get("createdBy", "Miao-Plugin")),
+        default_damage_key=str(raw.get("defDmgKey") or ""),
     )
 
 

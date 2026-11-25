@@ -156,15 +156,31 @@ def _artifact_key(artifact):
     )
 
 
+def _correct_swapped_artifact_names(artifact):
+    icon = artifact.get("图标") or ""
+    if icon.startswith((
+        "UI_RelicIcon_15040_",
+        "UI_RelicIcon_15045_",
+        "UI_RelicIcon_15046_",
+        "UI_RelicIcon_15048_",
+    )):
+        name = artifact_list["Name"].get(icon)
+        if name:
+            artifact["名称"] = name
+            artifact["所属套装"] = artifact_list["Mapping"][name]
+
+
 def _normalize_artifact_cache(data, roles):
     """Merge legacy/source variants before use and before persisting updates."""
     equipped = {}
     for role_name, role in roles.items():
         for artifact in role.get("圣遗物", []):
+            _correct_swapped_artifact_names(artifact)
             equipped.setdefault(_artifact_key(artifact), []).append(role_name)
     for index, artifacts in enumerate(data["圣遗物列表"]):
         unique = {}
         for artifact in artifacts:
+            _correct_swapped_artifact_names(artifact)
             key = _artifact_key(artifact)
             if key not in unique:
                 unique[key] = copy.deepcopy(artifact)

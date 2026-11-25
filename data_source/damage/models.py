@@ -183,6 +183,8 @@ class DamageDetail:
     factory: Callable[[DamageContext], "DamageDetail"] | None = None
     params_factory: Callable[[DamageContext], dict[str, Any]] | None = None
     talent: str = ""
+    damage_key: str = ""
+    is_static: bool = False
 
 
 @dataclass(frozen=True)
@@ -192,3 +194,4 @@ class CharacterRule:
     default_params: Any = field(default_factory=dict)
     default_detail: int = 0
     created_by: str = "Miao-Plugin"
+    default_damage_key: str = ""

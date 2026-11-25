@@ -53,7 +53,9 @@ element_type = ["物理", "火元素", "雷元素", "水元素", "草元素", "�
 role_info_json = load_json(f"{json_path}/role_info.json")
 
 
-async def draw_role_card(uid, data, player_info, plugin_version, only_cal, title=None):
+async def draw_role_card(
+    uid, data, player_info, plugin_version, only_cal, title=None, *, scoring=None, panel_ranks=None
+):
     artifact_pk = player_info.data["圣遗物榜单"]
     if not only_cal:
         bg_card = load_image(f"{bg_path}/背景_{data['元素']}.png", mode="RGBA")
@@ -62,17 +64,22 @@ async def draw_role_card(uid, data, player_info, plugin_version, only_cal, title
         except Exception as e:
             print(e)
             dmg_img = None
-        if dmg_img:
-            dmg_img = draw_dmg_pic(dmg_img)
-            bg = Image.new("RGBA", (1080, 1920 + dmg_img.size[1] + 20), (0, 0, 0, 0))
-            bg_card_center = bg_card.crop((0, 730, 1080, 1377)).resize((1080, dmg_img.size[1] + 667))
+        damage = draw_dmg_pic(dmg_img) if dmg_img else None
+        damage_height = damage.height + 20 if damage else 0
+        rank_height = panel_ranks.height + 20 if panel_ranks else 0
+        extra_height = damage_height + rank_height
+        if extra_height:
+            bg = Image.new("RGBA", (1080, 1920 + extra_height), (0, 0, 0, 0))
             bg.alpha_composite(bg_card.crop((0, 0, 1080, 730)), (0, 0))
-            bg.alpha_composite(bg_card_center, (0, 730))
-            bg.alpha_composite(bg_card.crop((0, 1377, 1080, 1920)), (0, dmg_img.size[1] + 1397))
-            bg.alpha_composite(dmg_img, (71, 1846))
+            bg.alpha_composite(
+                bg_card.crop((0, 730, 1080, 1377)).resize((1080, 647 + extra_height)),
+                (0, 730),
+            )
+            bg.alpha_composite(bg_card.crop((0, 1377, 1080, 1920)), (0, 1377 + extra_height))
+            if damage:
+                bg.alpha_composite(damage, (71, 1846))
         else:
-            bg = Image.new("RGBA", (1080, 1920), (0, 0, 0, 0))
-            bg.alpha_composite(bg_card, (0, 0))
+            bg = bg_card.copy()
         # 立绘
         role_pic = f"{char_pic_path}/{data['名称']}.png"
         role_pic = await get_img(url=role_url.format("UI_Gacha_AvatarImg_" + role_info_json[data["名称"]]["英文名"]), save_path=role_pic, mode="RGBA")
@@ -218,7 +225,7 @@ async def draw_role_card(uid, data, player_info, plugin_version, only_cal, title
         bg_draw = ImageDraw.Draw(bg)
     # 圣遗物
     no_list = ""
-    effective, weight_name = get_effective(data)
+    effective, weight_name = scoring if scoring is not None else get_effective(data)
     affix_weight, point_mark, max_mark = get_miao_score(effective, role_info_json[data["名称"]]["属性"])
     total_all = 0
     total_cnt = 0
@@ -245,7 +252,7 @@ async def draw_role_card(uid, data, player_info, plugin_version, only_cal, title
         )
         i = i - 2 if i > 1 else i
         if not title:
-            player_info.data["大毕业圣遗物"] = player_info.data["大毕业圣遗物"] + 1 if artifact_score == "ACE*" else player_info.data["大毕业圣遗物"]
+            player_info.data["大毕业圣遗物"] = player_info.data["大毕业圣遗物"] + 1 if artifact_score == "MAX" else player_info.data["大毕业圣遗物"]
             player_info.data["小毕业圣遗物"] = player_info.data["小毕业圣遗物"] + 1 if artifact_score == "ACE" else player_info.data["小毕业圣遗物"]
 
         artifact_pk_info["星级"] = artifact["星级"]
@@ -307,32 +314,44 @@ async def draw_role_card(uid, data, player_info, plugin_version, only_cal, title
         player_info.data["圣遗物榜单"] = sorted(player_info.data["圣遗物榜单"], key=lambda x: float(x["评分"]), reverse=True)[:20]
         data["评分"] = total_all
     if not only_cal:
+        if panel_ranks:
+            bg.alpha_composite(
+                panel_ranks.render(total_all, "圣遗物评分", other_path, get_font),
+                (71, 1846 + damage_height),
+            )
         # 圣遗物评分
         total_rank = get_mark_class(total_all / 5)
         total_int = round(total_all)
         bg_draw.text((119, 1057), "圣遗物总评分", fill="#afafaf", font=get_font(36))
-        rank_icon = load_image(f"{other_path}/评分{total_rank[0]}.png", mode="RGBA")
-        if total_rank.startswith("ACE"):
-            rank_icon = load_image(f"{other_path}/ACE-A.png", mode="RGBA", size=(55, 73))
-            bg.alpha_composite(rank_icon, (95, 964))
-            rank_icon = load_image(f"{other_path}/ACE-C.png", mode="RGBA", size=(55, 73))
-            bg.alpha_composite(rank_icon, (145, 964))
-            rank_icon = load_image(f"{other_path}/ACE-E.png", mode="RGBA", size=(55, 73))
-            bg.alpha_composite(rank_icon, (195, 964))
-            score_x = 275 if total_rank == "ACE*" else 250
-            if total_rank == "ACE*":
-                bg_draw.text((252, 974), "*", fill="white", font=get_font(42, "number.ttf"))
-            bg_draw.text((score_x, 974), str(total_int), fill="white", font=get_font(60, "number.ttf"))
+        if total_rank in ("ACE", "MAX"):
+            rank_font = get_font(76, "number.ttf")
+            rank_color = "#e85656" if total_rank == "MAX" else "#c05250"
+            rank_stroke = 1 if total_rank == "MAX" else 0
+            rank_bounds = bg_draw.textbbox((0, 0), total_rank, font=rank_font, stroke_width=rank_stroke)
+            rank_width = rank_bounds[2] - rank_bounds[0]
+            score_x = max(250, 95 + rank_width + 10)
+            bg_draw.text(
+                (95 - rank_bounds[0], 966 - rank_bounds[1]),
+                total_rank,
+                fill=rank_color,
+                font=rank_font,
+                stroke_width=rank_stroke,
+                stroke_fill=rank_color,
+            )
+            bg_draw.text((score_x, 985), str(total_int), fill="white", font=get_font(48, "number.ttf"))
         elif len(total_rank) == 3:
+            rank_icon = load_image(f"{other_path}/评分{total_rank[0]}.png", mode="RGBA")
             bg.alpha_composite(rank_icon, (95, 964))
             bg.alpha_composite(rank_icon, (145, 964))
             bg.alpha_composite(rank_icon, (195, 964))
             bg_draw.text((250, 974), str(total_int), fill="white", font=get_font(60, "number.ttf"))
         elif len(total_rank) == 2:
+            rank_icon = load_image(f"{other_path}/评分{total_rank[0]}.png", mode="RGBA")
             bg.alpha_composite(rank_icon, (125, 964))
             bg.alpha_composite(rank_icon, (175, 964))
             bg_draw.text((235, 974), str(total_int), fill="white", font=get_font(60, "number.ttf"))
         else:
+            rank_icon = load_image(f"{other_path}/评分{total_rank[0]}.png", mode="RGBA")
             bg.alpha_composite(rank_icon, (143, 964))
             bg_draw.text((217, 974), str(total_int), fill="white", font=get_font(60, "number.ttf"))
 

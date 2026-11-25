@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .artifact_stats import static_percent_attributes
+from .artifact_stats import static_percent_attributes, static_set_attributes
 from .models import DamageAttributes, DamageContext
 
 
@@ -66,6 +66,11 @@ def build_context(data: dict) -> DamageContext:
         if index != element_idx
     )
     static_percent = static_percent_attributes(data)
+    # The cached panel attributes do not include shield strength.
+    shield_strength = sum(
+        value for name, value in static_set_attributes(data.get("圣遗物", []))
+        if name == "护盾强效"
+    )
     attr = DamageAttributes(
         base_hp=base_hp,
         base_atk=base_atk,
@@ -80,6 +85,7 @@ def build_context(data: dict) -> DamageContext:
         dmg=own_damage,
         phy=physical_damage,
         heal=float(prop.get("治疗加成", 0)) * 100,
+        shield=100 + shield_strength,
         hp_pct=static_percent["hp"],
         atk_pct=static_percent["atk"],
         defense_pct=static_percent["defense"],

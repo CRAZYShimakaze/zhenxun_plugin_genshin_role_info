@@ -137,7 +137,7 @@ def get_mark_class(mark):
         return "SSS"
     if mark < 56:
         return "ACE"
-    return "ACE*"
+    return "MAX"
 
 
 def get_artifact_score(

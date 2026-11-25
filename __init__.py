@@ -30,6 +30,7 @@ from zhenxun.services.log import logger
 from zhenxun.utils.enum import PluginType
 
 # 金币扣费装饰器已停用
+from ..plugin_utils.panel_ranks import get_panel_ranks
 from .battle_records import BATTLE_COMMAND_PATTERN, build_battle_report, parse_battle_command
 from .utils.download_utils import DownloadError
 from .data_source.damage import get_role_dmg
@@ -39,6 +40,7 @@ from .data_source.draw_role_rank_card import draw_role_rank_card
 from .data_source.draw_recommend_card import (
     gen_artifact_adapt,
     gen_artifact_recommend,
+    gen_attribute_set_recommend,
     gen_suit_recommend,
 )
 from .data_source.draw_role_card import MissingIconSourceError, draw_role_card
@@ -78,18 +80,21 @@ __plugin_meta__ = PluginMetadata(
         XX(花羽沙杯冠)推荐
         XX(乐团/魔女/...)套推荐
         XX(乐团/魔女/...)独立套推荐
-        推荐命令末尾可加伤害序号 (例:胡桃魔女套推荐2)
+        XX(生命/攻击/精通)套推荐 (五星2+2，例:胡桃精通套推荐)
+        XX独立(生命/攻击/精通)套推荐 (例:胡桃独立精通套推荐)
+        推荐命令末尾可加伤害序号 (例:胡桃独立精通套推荐2)
         原神角色排行
         最强XX (例:最强甘雨)
         最菜XX
-        XX评分排行 (例:胡桃评分排行)
+        XX排行默认查评分 (例:胡桃排行、胡桃评分排行)
         XX伤害排行序号 (例:胡桃伤害排行5)
+        可指定命座筛选，例如 胡桃0命伤害排行1
         圣遗物榜单
         群圣遗物榜单
     """.strip(),
     extra=PluginExtraData(
         author="CRAZYSHIMAKAZE",
-        version="4.3.17",
+        version="4.3.18",
         plugin_type=PluginType.NORMAL,
     ).to_dict(),
 )
@@ -111,7 +116,23 @@ driver: Driver = nonebot.get_driver()
 get_card = on_regex(r"(.*)面板(.*)", priority=4, block=False)
 group_best = on_regex(r"^(最强|群最强)(.*)", priority=4)
 group_worst = on_regex(r"^(最菜|群最菜)(.*)", priority=4)
-role_rank = on_regex(r"^(.+?)(评分|伤害)(?:排行|榜单)(\d*)$", permission=GROUP, priority=4, block=True)
+ROLE_RANK_PATTERN = re.compile(
+    r"^(.+?)(?:(\d+)(?:命座?|星魂)(?=伤害))?(评分|伤害|(?=排行$))(?:排行|榜单)(\d*)$"
+)
+
+
+async def is_role_rank(event: GroupMessageEvent) -> bool:
+    match = ROLE_RANK_PATTERN.search(str(event.get_message()))
+    return bool(match and get_role_name(match[1].strip()))
+
+
+role_rank = on_regex(
+    ROLE_RANK_PATTERN.pattern,
+    rule=is_role_rank,
+    permission=GROUP,
+    priority=4,
+    block=True,
+)
 artifact_adapt = on_regex("(.*?)([花羽沙杯冠])适配", priority=4)
 artifact_recommend = on_regex(r"(.*?)([花羽沙杯冠套])推荐(\d*)$", priority=4)
 artifact_list = on_command("圣遗物榜单", aliases={"圣遗物排行"}, priority=4, block=True)
@@ -710,7 +731,14 @@ async def test(bot: Bot, event: MessageEvent, args: tuple[str, ...] = RegexGroup
 async def test(bot: Bot, event: MessageEvent, args: tuple[str, ...] = RegexGroup()):
     msg = args[0].strip(), args[1].strip()
     damage_index = int(args[2]) if args[2] else None
-    uid = await get_msg_uid(event)
+    pos = ["花", "羽", "沙", "杯", "冠", "套"].index(msg[1])
+    is_suit = msg[1] == "套"
+    attribute_match = (
+        re.fullmatch(r"(.+?)(独立)?(生命|攻击|精通)", msg[0])
+        if is_suit
+        else None
+    )
+    attribute_role = get_role_name(attribute_match[1].strip()) if attribute_match else ""
     main_prop = [
         "爆伤",
         "暴击",
@@ -729,32 +757,32 @@ async def test(bot: Bot, event: MessageEvent, args: tuple[str, ...] = RegexGroup
         "治疗",
         "充能",
     ]
-    suit_list = artifact_info.get("Info")
-    element = ""
     suit_name = ""
-    is_suit = False
     occupy = False
-    info = msg[0]
-    for item in main_prop:
-        if item in info:
-            element = item
-            info = info.replace(item, "")
-            break
-    if "独立" in info:
-        info = info.replace("独立", "")
-        occupy = True
-    for item in suit_list:
-        if item[:2] in info:
-            suit_name = item
-            info = info.replace(item[:2], "")
-            break
-    role = info
-    pos = ["花", "羽", "沙", "杯", "冠", "套"].index(msg[1])
-    if pos == 5:
-        is_suit = True
-    role_name = get_role_name(role)
-    if not role_name:
-        return
+    if attribute_role:
+        role_name = attribute_role
+        element = attribute_match[3]
+        occupy = bool(attribute_match[2])
+    else:
+        element = ""
+        info = msg[0]
+        for item in main_prop:
+            if item in info:
+                element = item
+                info = info.replace(item, "")
+                break
+        if "独立" in info:
+            info = info.replace("独立", "")
+            occupy = True
+        for item in artifact_info["Info"]:
+            if item[:2] in info:
+                suit_name = item
+                info = info.replace(item[:2], "")
+                break
+        role_name = get_role_name(info)
+        if not role_name or (is_suit and element and not suit_name):
+            return
+    uid = await get_msg_uid(event)
     player_info, _ = await get_enka_info(uid, update_info=False, event=event)
     artifact_pos_list = []
     if not is_suit:
@@ -768,13 +796,16 @@ async def test(bot: Bot, event: MessageEvent, args: tuple[str, ...] = RegexGroup
     role_data = player_info.get_roles_info(role_name)
     command_suffix = str(damage_index) if damage_index is not None else ""
     recommendation_target = (
-        f"{suit_name or ''}{element or ''}{'套装' if is_suit else msg[1]}"
+        f"五星{element}2+2套装"
+        if attribute_role
+        else f"{suit_name}{element}{'套装' if is_suit else msg[1]}"
     )
     recommendation_metric = "伤害" if damage_index is not None else "评分"
-    await artifact_recommend.send(
-        f"正在从圣遗物缓存中匹配{recommendation_metric}最高的{recommendation_target}搭配，请稍后...",
-        at_sender=True,
-    )
+    if is_suit and damage_index is not None:
+        progress = f"正在从圣遗物缓存中搜索{recommendation_target}搭配，按第{damage_index}项期望伤害比较，请稍后..."
+    else:
+        progress = f"正在从圣遗物缓存中匹配{recommendation_metric}最高的{recommendation_target}搭配，请稍后..."
+    await artifact_recommend.send(progress, at_sender=True)
     try:
         if not is_suit:
             img, target_title = await gen_artifact_recommend(
@@ -789,6 +820,18 @@ async def test(bot: Bot, event: MessageEvent, args: tuple[str, ...] = RegexGroup
                 __plugin_version__,
                 damage_index,
                 player_info,
+            )
+        elif attribute_role:
+            independent = "独立" if occupy else ""
+            img, target_title = await gen_attribute_set_recommend(
+                f"{independent}{element}套推荐{command_suffix}",
+                role_data,
+                player_info,
+                uid,
+                element,
+                __plugin_version__,
+                occupy=occupy,
+                damage_index=damage_index,
             )
         else:
             img, target_title = await gen_suit_recommend(
@@ -810,9 +853,13 @@ async def test(bot: Bot, event: MessageEvent, args: tuple[str, ...] = RegexGroup
             at_sender=True,
         )
     if not img:
-        await artifact_recommend.finish(  # MessageSegment.reply(event.message_id) +
-            "未找到符合条件的圣遗物推荐!"
-        )
+        if attribute_role:
+            scope = "独立" if occupy else ""
+            return await artifact_recommend.finish(
+                f"未找到符合条件的五星{element}{scope}2+2搭配，需要两种不同的{element}两件套和一件五星散件。",
+                at_sender=True,
+            )
+        return await artifact_recommend.finish("未找到符合条件的圣遗物推荐!")
     target_note = f"目标伤害：{damage_index}.{target_title}\n" if damage_index is not None and target_title else ""
     await artifact_recommend.send(  # MessageSegment.reply(event.message_id) +
         img + target_note + "注:仅根据当前缓存圣遗物进行推荐,发送'圣遗物导入'可导入背包内所有圣遗物."
@@ -849,13 +896,17 @@ async def _(bot: Bot, event: MessageEvent):
 async def _(
     bot: Bot,
     event: GroupMessageEvent,
-    args: tuple[str, ...] = RegexGroup(),
+    args: tuple[str, str | None, str, str] = RegexGroup(),
 ):
-    role_name = get_role_name(args[0].strip())
-    metric = args[1]
-    damage_index_text = args[2]
+    role_text, rank_text, metric, damage_index_text = args
+    metric = metric or "评分"
+    role_name = get_role_name(role_text.strip())
     if not role_name:
         return await role_rank.finish()
+    if rank_text and (len(rank_text) != 1 or int(rank_text) > 6):
+        return await role_rank.finish("请输入 0 到 6 的命座等级。", at_sender=False)
+    rank_filter = int(rank_text) if rank_text else None
+    role_label = f"{role_name}{rank_filter}命" if rank_filter is not None else role_name
     if metric == "伤害" and (
         not damage_index_text or int(damage_index_text) < 1
     ):
@@ -872,6 +923,7 @@ async def _(
             player_info_path,
             role_name,
             get_role_dmg,
+            rank_filter=rank_filter,
         )
         if damage_titles:
             damage_items = "\n".join(
@@ -879,15 +931,15 @@ async def _(
                 for index, title in enumerate(damage_titles, start=1)
             )
             return await role_rank.finish(
-                f"请指定{role_name}伤害面板中的项目序号，例如："
-                f"{role_name}伤害排行1\n"
+                f"请指定{role_label}伤害面板中的项目序号，例如："
+                f"{role_label}伤害排行1\n"
                 f"各数字对应的伤害项目：\n{damage_items}",
                 at_sender=False,
             )
         return await role_rank.finish(
-            f"请指定{role_name}伤害面板中的项目序号，例如："
-            f"{role_name}伤害排行1\n"
-            "暂未找到该角色的伤害面板，请先让群成员更新面板后重试。",
+            f"请指定{role_label}伤害面板中的项目序号，例如："
+            f"{role_label}伤害排行1\n"
+            f"暂未找到{role_label}的伤害面板，请先让群成员更新面板后重试。",
             at_sender=False,
         )
     if metric == "评分" and damage_index_text:
@@ -910,11 +962,12 @@ async def _(
         metric,
         damage_calculator=get_role_dmg,
         damage_index=damage_index,
+        rank_filter=rank_filter,
     )
     if not entries:
         if metric == "伤害":
             return await role_rank.finish(
-                f"本群暂无可用于{role_name}第{damage_index}个伤害项目的排行数据，"
+                f"本群暂无可用于{role_label}第{damage_index}个伤害项目的排行数据，"
                 "请确认序号未超出伤害面板范围，并让群成员更新原神面板。",
                 at_sender=False,
             )
@@ -924,7 +977,7 @@ async def _(
             at_sender=False,
         )
     image = await draw_role_rank_card(
-        f"{role_name}{metric}排行{damage_index or ''}",
+        f"{role_label}{metric}排行{damage_index or ''}",
         role_name,
         event.group_id,
         entries,
@@ -1090,6 +1143,9 @@ async def gen(event: MessageEvent, uid, role_name, at_user):
     roles_list = player_info.get_roles_list()
     await check_role_avaliable(role_name, roles_list, event)
     role_data = player_info.get_roles_info(role_name)
+    panel_ranks = await get_panel_ranks(
+        event, player_info_path, uid, role_name, role_data, get_role_dmg
+    )
     try:
         img, score = await draw_role_card(
             uid,
@@ -1097,6 +1153,7 @@ async def gen(event: MessageEvent, uid, role_name, at_user):
             player_info,
             __plugin_version__,
             only_cal=False,
+            panel_ranks=panel_ranks,
         )
     except (DownloadError, MissingIconSourceError):
         return await get_card.finish(
@@ -1156,7 +1213,7 @@ def check_role(role_name, event, img, score):
                     else:
                         return f"你仍然是本群最强{role_name}!\n"
                 else:
-                    return f"恭喜你成为本群最菜{role_name}!\n距本群最强{role_name}还有{round(float(role_info_best[0]) - score, 2)}分差距!\n"
+                    return f"恭喜你成为本群最菜{role_name}!\n"
             else:
                 if float(role_info_best[0]) <= score:
                     os.unlink(f"{role_path.parent}/{data[-1]}")
@@ -1175,9 +1232,9 @@ def check_role(role_name, event, img, score):
                         if old_worst != event.user_id:
                             return Message(f"恭喜你帮助{MessageSegment.at(old_worst)}摆脱最菜{role_name}的头衔!\n")
                         else:
-                            return f"你仍然是本群最菜{role_name}!\n距本群最强{role_name}还有{round(float(role_info_best[0]) - score, 2)}分差距!\n"
+                            return f"你仍然是本群最菜{role_name}!\n"
                     else:
-                        return f"距本群最强{role_name}还有{round(float(role_info_best[0]) - score, 2)}分差距!\n"
+                        return ""
     return ""
 
 

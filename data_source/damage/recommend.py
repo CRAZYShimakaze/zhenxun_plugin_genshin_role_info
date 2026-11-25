@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
-from itertools import product
+from itertools import combinations, product
 import math
-from typing import Iterable
+from typing import Callable, Iterable
 
 from .artifact_stats import (
     artifact_attributes as _artifact_attributes,
@@ -21,8 +21,9 @@ ELEMENT_INDEX = {
     "岩": 6,
     "冰": 7,
 }
-MAX_EXHAUSTIVE_COMBINATIONS = 12_000
-BEAM_WIDTH = 24
+MAX_EXHAUSTIVE_COMBINATIONS = 1_000
+BEAM_WIDTH = 6
+MAX_DAMAGE_FINALISTS = 4
 GLOBAL_CANDIDATES = 10
 MAX_SHORTLIST = 18
 
@@ -43,8 +44,8 @@ def apply_artifact_combination(data: dict, artifacts: Iterable[dict]) -> dict:
     result = copy.deepcopy(data)
     selected = [copy.deepcopy(artifact) for artifact in artifacts]
     current = result.get("圣遗物", [])
-    if len(current) != 5 or len(selected) != 5:
-        raise ValueError("角色和候选圣遗物都必须包含五个部位")
+    if len(selected) > 5:
+        raise ValueError("候选圣遗物最多包含五个部位")
 
     delta: dict[str, float] = {}
     for sign, artifact_list in ((-1, current), (1, selected)):
@@ -99,22 +100,33 @@ def get_damage_target(data: dict, damage_index: int) -> tuple[str, float]:
         )
 
     title, values = rows[damage_index - 1]
+    return title, _damage_target_value(title, values, damage_index)
+
+
+def _damage_target_value(title: str, values, damage_index: int) -> float:
     # Miao returns expected damage first even though the rendered table shows
     # the critical column on the left.
     if getattr(values, "is_text", False):
         raise DamageTargetError(f"第 {damage_index} 项“{title}”不是数值伤害")
     raw_value = values[0]
     try:
-        value = float(str(raw_value).rstrip("%"))
+        return float(str(raw_value).rstrip("%"))
     except ValueError as error:
         raise DamageTargetError(f"第 {damage_index} 项“{title}”不是数值伤害") from error
-    return title, value
 
 
 def _evaluate(data: dict, artifacts: Iterable[dict], damage_index: int) -> DamageRecommendation:
     candidate_data = apply_artifact_combination(data, artifacts)
     title, value = get_damage_target(candidate_data, damage_index)
     return DamageRecommendation(candidate_data, title, value)
+
+
+def artifact_slot_index(artifacts: list[dict], position: int) -> int:
+    slot = ("生之花", "死之羽", "时之沙", "空之杯", "理之冠")[position]
+    return next(
+        (index for index, artifact in enumerate(artifacts) if artifact.get("部位") == slot),
+        len(artifacts),
+    )
 
 
 def recommend_single_artifact(
@@ -135,30 +147,14 @@ def rank_single_artifacts(
 ) -> list[DamageRecommendation]:
     get_damage_target(data, damage_index)
     ranked: list[tuple[float, int, DamageRecommendation]] = []
-    current = list(data["圣遗物"])
+    current = data["圣遗物"]
+    slot_index = artifact_slot_index(current, position)
     for order, artifact in enumerate(artifacts):
-        combination = list(current)
-        combination[position] = artifact
+        combination = [*current[:slot_index], artifact, *current[slot_index + 1:]]
         recommendation = _evaluate(data, combination, damage_index)
         ranked.append((recommendation.value, order, recommendation))
     ranked.sort(key=lambda item: (-item[0], item[1]))
     return [recommendation for _, _, recommendation in ranked]
-
-
-def _rank_candidates(
-    data: dict,
-    candidates: list[dict],
-    position: int,
-    damage_index: int,
-) -> list[dict]:
-    current = list(data["圣遗物"])
-    ranked: list[tuple[float, int, dict]] = []
-    for order, artifact in enumerate(candidates):
-        combination = list(current)
-        combination[position] = artifact
-        ranked.append((_evaluate(data, combination, damage_index).value, order, artifact))
-    ranked.sort(key=lambda item: (-item[0], item[1]))
-    return [artifact for _, _, artifact in ranked]
 
 
 def _shortlist(ranked: list[dict]) -> list[dict]:
@@ -178,27 +174,25 @@ def _shortlist(ranked: list[dict]) -> list[dict]:
 
 
 def _best_from_product(
-    data: dict,
     groups: list[list[dict]],
-    damage_index: int,
+    evaluate: Callable[[Iterable[dict]], DamageRecommendation],
 ) -> DamageRecommendation | None:
     best: DamageRecommendation | None = None
     for combination in product(*groups):
-        recommendation = _evaluate(data, combination, damage_index)
+        recommendation = evaluate(combination)
         if best is None or recommendation.value > best.value:
             best = recommendation
     return best
 
 
 def _best_from_beam(
-    data: dict,
     groups: list[list[dict]],
     shortlists: list[list[dict]],
-    damage_index: int,
+    evaluate: Callable[[Iterable[dict]], DamageRecommendation],
 ) -> DamageRecommendation | None:
     seed = [candidates[0] for candidates in shortlists]
     beam: list[tuple[float, list[dict], DamageRecommendation]] = []
-    seed_result = _evaluate(data, seed, damage_index)
+    seed_result = evaluate(seed)
     beam.append((seed_result.value, seed, seed_result))
 
     # Expanding the largest group first avoids paying its branching factor
@@ -209,7 +203,7 @@ def _best_from_beam(
             for artifact in shortlists[position]:
                 next_combination = list(combination)
                 next_combination[position] = artifact
-                recommendation = _evaluate(data, next_combination, damage_index)
+                recommendation = evaluate(next_combination)
                 expanded.append((recommendation.value, next_combination, recommendation))
         expanded.sort(key=lambda item: item[0], reverse=True)
         beam = expanded[:BEAM_WIDTH]
@@ -222,25 +216,185 @@ def _best_from_beam(
     # recovers strong candidates omitted by the shortlist without an unbounded
     # five-dimensional Cartesian product.
     combination = list(best.data["圣遗物"])
-    for _ in range(3):
-        changed = False
-        for position, candidates in enumerate(groups):
-            position_best = best
-            position_artifact = combination[position]
-            for artifact in candidates:
-                next_combination = list(combination)
-                next_combination[position] = artifact
-                recommendation = _evaluate(data, next_combination, damage_index)
-                if recommendation.value > position_best.value:
-                    position_best = recommendation
-                    position_artifact = artifact
-            if position_best.value > best.value:
-                best = position_best
-                combination[position] = position_artifact
-                changed = True
-        if not changed:
-            break
+    for position, candidates in enumerate(groups):
+        position_best = best
+        for artifact in candidates:
+            next_combination = list(combination)
+            next_combination[position] = artifact
+            recommendation = evaluate(next_combination)
+            if recommendation.value > position_best.value:
+                position_best = recommendation
+        if position_best.value > best.value:
+            best = position_best
+            combination = list(best.data["圣遗物"])
     return best
+
+
+def _two_piece_groups(
+    artifact_lists: Iterable[Iterable[dict]],
+    suits: set[str],
+    owner: str | None,
+) -> list[dict[str | None, list[dict]]]:
+    groups = []
+    for artifacts in artifact_lists:
+        by_suit: dict[str | None, list[dict]] = {}
+        for artifact in artifacts:
+            if artifact.get("星级") not in (5, "5"):
+                continue
+            if owner is not None and artifact.get("角色", "") not in {"", owner}:
+                continue
+            by_suit.setdefault(None, []).append(artifact)
+            suit = artifact.get("所属套装")
+            if suit in suits:
+                by_suit.setdefault(suit, []).append(artifact)
+        groups.append(by_suit)
+    return groups
+
+
+def _two_piece_layouts(
+    groups: list[dict[str | None, list[dict]]],
+) -> Iterable[tuple[str | None, ...]]:
+    positions = range(5)
+    if len(groups) != len(positions) or not all(groups):
+        return
+    available_suits = sorted({suit for group in groups for suit in group if suit is not None})
+    for first, second in combinations(available_suits, 2):
+        for off_piece in positions:
+            set_positions = [position for position in positions if position != off_piece]
+            for first_positions in combinations(set_positions, 2):
+                layout: list[str | None] = [second] * len(positions)
+                layout[off_piece] = None
+                for position in first_positions:
+                    layout[position] = first
+                if all(suit in group for group, suit in zip(groups, layout)):
+                    yield tuple(layout)
+
+
+def recommend_two_piece_sets(
+    artifact_lists: Iterable[Iterable[dict]],
+    suits: set[str],
+    score_artifact: Callable[[int, dict], float],
+    owner: str | None = None,
+) -> list[dict] | None:
+    groups = _two_piece_groups(artifact_lists, suits, owner)
+    layouts = list(_two_piece_layouts(groups))
+    if not layouts:
+        return None
+
+    best_by_position = []
+    for position, by_suit in enumerate(groups):
+        scored = {
+            id(artifact): (score_artifact(position, artifact), artifact)
+            for artifact in by_suit[None]
+        }
+        best_by_position.append({
+            suit: max((scored[id(artifact)] for artifact in candidates), key=lambda pick: pick[0])
+            for suit, candidates in by_suit.items()
+        })
+
+    best_score = -math.inf
+    best_artifacts = None
+    for layout in layouts:
+        picks = [best[suit] for best, suit in zip(best_by_position, layout)]
+        score = sum(pick[0] for pick in picks)
+        if score > best_score:
+            best_score = score
+            best_artifacts = [pick[1] for pick in picks]
+    return best_artifacts
+
+
+def recommend_two_piece_damage(
+    data: dict,
+    artifact_lists: Iterable[Iterable[dict]],
+    suits: set[str],
+    damage_index: int,
+    owner: str | None = None,
+    *,
+    score_combination: list[dict] | None = None,
+) -> DamageRecommendation | None:
+    groups = _two_piece_groups(artifact_lists, suits, owner)
+    layout_groups = [
+        [group[suit] for group, suit in zip(groups, layout)]
+        for layout in _two_piece_layouts(groups)
+    ]
+    return _search_damage_layouts(
+        data, layout_groups, damage_index, score_combination=score_combination
+    )
+
+
+def _search_damage_layouts(
+    data: dict,
+    layout_groups: list[list[list[dict]]],
+    damage_index: int,
+    *,
+    score_combination: list[dict] | None = None,
+) -> DamageRecommendation | None:
+    title, _ = get_damage_target(data, damage_index)
+    if not layout_groups:
+        return None
+
+    def evaluate(artifacts: Iterable[dict]) -> DamageRecommendation:
+        candidate = apply_artifact_combination(data, artifacts)
+        damage = get_role_dmg(candidate) or {}
+        values = damage.get(title)
+        value = -math.inf
+        if values is not None:
+            try:
+                value = _damage_target_value(title, values, damage_index)
+            except DamageTargetError:
+                pass
+        return DamageRecommendation(candidate, title, value)
+
+    total = sum(math.prod(map(len, candidates)) for candidates in layout_groups)
+    best = evaluate(score_combination) if score_combination is not None else None
+    if total <= MAX_EXHAUSTIVE_COMBINATIONS:
+        for candidates in layout_groups:
+            result = _best_from_product(candidates, evaluate)
+            if result is not None and (best is None or result.value > best.value):
+                best = result
+    else:
+        # Rank each piece once, evaluate a full build for every valid layout,
+        # and run the existing beam search on the highest-damage layouts.
+        reference = list(data.get("圣遗物", []))
+        if len(reference) != 5:
+            reference = [candidates[0] for candidates in layout_groups[0]]
+        shortlists_by_position = []
+        for position, position_groups in enumerate(zip(*layout_groups)):
+            unique_groups = {id(group): group for group in position_groups}
+            artifacts = {
+                id(artifact): artifact
+                for group in unique_groups.values()
+                for artifact in group
+            }
+            values = {
+                key: evaluate(
+                    [*reference[:position], artifact, *reference[position + 1:]]
+                ).value
+                for key, artifact in artifacts.items()
+            }
+            shortlists_by_position.append({
+                key: _shortlist(sorted(
+                    group, key=lambda artifact: values[id(artifact)], reverse=True
+                ))
+                for key, group in unique_groups.items()
+            })
+
+        finalists = []
+        for candidates in layout_groups:
+            shortlists = [
+                by_group[id(group)] for by_group, group in zip(shortlists_by_position, candidates)
+            ]
+            result = evaluate([shortlist[0] for shortlist in shortlists])
+            finalists.append((result.value, candidates, shortlists))
+            if best is None or result.value > best.value:
+                best = result
+        finalists.sort(key=lambda item: item[0], reverse=True)
+        for _, candidates, shortlists in finalists[:MAX_DAMAGE_FINALISTS]:
+            result = _best_from_beam(candidates, shortlists, evaluate)
+            if result is not None and (best is None or result.value > best.value):
+                best = result
+
+    return best if best is not None and best.value > -math.inf else None
 
 
 def recommend_artifact_set(
@@ -249,8 +403,9 @@ def recommend_artifact_set(
     suit: str,
     damage_index: int,
     occupy: bool = False,
+    *,
+    score_combination: list[dict] | None = None,
 ) -> DamageRecommendation | None:
-    get_damage_target(data, damage_index)
     role_name = data["名称"]
     all_groups = [
         [
@@ -264,43 +419,14 @@ def recommend_artifact_set(
         [artifact for artifact in artifacts if suit in artifact.get("所属套装", "")]
         for artifacts in all_groups
     ]
-    ranked_all = [
-        _rank_candidates(data, candidates, position, damage_index)
-        if candidates
-        else []
-        for position, candidates in enumerate(all_groups)
-    ]
-    ranked_suit = [
-        _rank_candidates(data, candidates, position, damage_index)
-        if candidates
-        else []
-        for position, candidates in enumerate(suit_groups)
-    ]
-
-    best: DamageRecommendation | None = None
+    layout_groups = []
     for off_piece in range(5):
         groups = [
             all_groups[position] if position == off_piece else suit_groups[position]
             for position in range(5)
         ]
-        if any(not candidates for candidates in groups):
-            continue
-        combinations = math.prod(len(candidates) for candidates in groups)
-        if combinations <= MAX_EXHAUSTIVE_COMBINATIONS:
-            recommendation = _best_from_product(data, groups, damage_index)
-        else:
-            ranked = [
-                ranked_all[position] if position == off_piece else ranked_suit[position]
-                for position in range(5)
-            ]
-            recommendation = _best_from_beam(
-                data,
-                groups,
-                [_shortlist(candidates) for candidates in ranked],
-                damage_index,
-            )
-        if recommendation is not None and (
-            best is None or recommendation.value > best.value
-        ):
-            best = recommendation
-    return best
+        if all(groups):
+            layout_groups.append(groups)
+    return _search_damage_layouts(
+        data, layout_groups, damage_index, score_combination=score_combination
+    )

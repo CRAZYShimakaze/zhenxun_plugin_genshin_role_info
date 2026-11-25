@@ -11,9 +11,14 @@ from ..utils.artifact_utils import (
 from ..utils.card_utils import json_path, role_score
 from ..utils.image_utils import image_build
 from ..utils.json_utils import load_json
+from .damage.artifact_stats import static_two_piece_suits
 from .damage.recommend import (
+    apply_artifact_combination,
+    artifact_slot_index,
     rank_single_artifacts,
     recommend_artifact_set,
+    recommend_two_piece_damage,
+    recommend_two_piece_sets,
 )
 from .draw_artifact_card import draw_artifact_card
 from .draw_role_card import draw_role_card
@@ -201,6 +206,9 @@ async def gen_artifact_recommend(
         in artifact["主属性"]["属性名"]
         and suit in artifact["所属套装"]
     ]
+    current = data["圣遗物"]
+    slot_index = artifact_slot_index(current, pos)
+    ori_artifact = current[slot_index] if slot_index < len(current) else None
     if damage_index is not None:
         recommendations = await asyncio.to_thread(
             rank_single_artifacts,
@@ -212,9 +220,8 @@ async def gen_artifact_recommend(
         if not recommendations:
             return None, None
         artifact_all = []
-        ori_artifact = data["圣遗物"][pos]
         for recommendation in recommendations[:20]:
-            artifact = recommendation.data["圣遗物"][pos]
+            artifact = recommendation.data["圣遗物"][slot_index]
             artifact_pk_info = _artifact_card_info(
                 recommendation.data,
                 artifact,
@@ -238,11 +245,10 @@ async def gen_artifact_recommend(
 
     artifact_all = []
 
-    ori_artifact = data["圣遗物"][pos]
     for artifact in candidates:
-        data["圣遗物"][pos] = artifact
+        combination = [*current[:slot_index], artifact, *current[slot_index + 1:]]
         artifact_pk_info = _artifact_card_info(
-            data,
+            {**data, "圣遗物": combination},
             artifact,
             ori_artifact,
             role_name,
@@ -256,6 +262,91 @@ async def gen_artifact_recommend(
     return await draw_artifact_card(title, role_name, uid, artifact_all, ace2_num=0, ace_num=0, plugin_version=plugin_version)
 
 
+async def gen_attribute_set_recommend(
+    title, data, player_info, uid, attribute, plugin_version, *, occupy=False, damage_index=None
+):
+    artifact_lists = player_info.data["圣遗物列表"]
+    suits = static_two_piece_suits(convert["main_prop"][attribute])
+    role_name = data["名称"]
+    owner = role_name if occupy else None
+    scoring = get_effective(data)
+    _, point_mark, max_mark = get_miao_score(
+        scoring[0].copy(), role_info_json[role_name]["属性"]
+    )
+
+    def score_artifact(position, artifact):
+        _, score, _ = get_artifact_score(
+            point_mark, max_mark, artifact, data["元素"], position, role_name
+        )
+        return score
+
+    artifacts = await asyncio.to_thread(
+        recommend_two_piece_sets, artifact_lists, suits, score_artifact, owner
+    )
+    target_title = None
+    if damage_index is not None:
+        recommendation = await asyncio.to_thread(
+            recommend_two_piece_damage,
+            data,
+            artifact_lists,
+            suits,
+            damage_index,
+            owner,
+            score_combination=artifacts,
+        )
+        if recommendation is None:
+            return None, None
+        result = recommendation.data
+        target_title = recommendation.title
+        scoring = None
+    else:
+        if artifacts is None:
+            return None, None
+        result = apply_artifact_combination(data, artifacts)
+
+    img, _ = await draw_role_card(
+        uid, result, player_info, plugin_version, False, title, scoring=scoring
+    )
+    return image_build(img=img, quality=100, mode="RGB"), target_title
+
+
+def _score_suit_combination(data, artifact_lists, role_name, suit, occupy):
+    role_info = role_info_json[role_name]
+    effective, _ = get_effective(data)
+    _, point_mark, max_mark = get_miao_score(effective, role_info["属性"])
+    best_by_position = []
+    set_best_by_position = []
+
+    for position, artifacts in enumerate(artifact_lists):
+        best = None
+        set_best = None
+        for artifact in artifacts:
+            if occupy and artifact.get("角色", "") not in {"", role_name}:
+                continue
+            _, score, _ = get_artifact_score(
+                point_mark, max_mark, artifact, role_info["元素"], position, role_name
+            )
+            if best is None or score >= best[0]:
+                best = (score, artifact)
+            if suit in artifact["所属套装"] and (set_best is None or score >= set_best[0]):
+                set_best = (score, artifact)
+        best_by_position.append(best)
+        set_best_by_position.append(set_best)
+
+    best_score = None
+    best_artifacts = None
+    for off_piece, off_pick in enumerate(best_by_position):
+        picks = list(set_best_by_position)
+        picks[off_piece] = off_pick
+        if any(pick is None for pick in picks):
+            continue
+        score = sum(pick[0] for pick in picks)
+        if best_score is None or score > best_score:
+            best_score = score
+            best_artifacts = [pick[1] for pick in picks]
+    return best_artifacts
+
+
 async def gen_suit_recommend(
     title,
     data,
@@ -267,138 +358,29 @@ async def gen_suit_recommend(
     plugin_version,
     damage_index=None,
 ):
-    artifact_list = player_info.data["圣遗物列表"]
+    artifact_lists = player_info.data["圣遗物列表"]
+    score_combination = _score_suit_combination(
+        data, artifact_lists, role_name, suit, occupy
+    )
+    target_title = None
     if damage_index is not None:
         recommendation = await asyncio.to_thread(
             recommend_artifact_set,
             data,
-            artifact_list,
+            artifact_lists,
             suit,
             damage_index,
             occupy,
+            score_combination=score_combination,
         )
         if recommendation is None:
             return None, None
-        img, _ = await draw_role_card(
-            uid,
-            recommendation.data,
-            player_info,
-            plugin_version,
-            False,
-            title,
-        )
-        return (
-            image_build(img=img, quality=100, mode="RGB"),
-            recommendation.title,
-        )
-
-    artifact_best_same = [0, 0, 0, 0, 0]
-    artifact_best = [0, 0, 0, 0, 0]
-    artifact_best_same_score = [0, 0, 0, 0, 0]
-    artifact_best_score = [0, 0, 0, 0, 0]
-    effective, _ = get_effective(data)
-    prop_diff = {
-        "暴击率": 0,
-        "暴击伤害": 0,
-        "元素精通": 0,
-        "百分比攻击力": 0,
-        "百分比生命值": 0,
-        "百分比防御力": 0,
-        "元素充能效率": 0,
-        "元素伤害加成": 0,
-        "物理伤害加成": 0,
-        "治疗加成": 0,
-        "攻击力": 0,
-        "生命值": 0,
-        "防御力": 0,
-    }
-    element_before = ""
-    element_after = ""
-    for pos in range(5):
-        if data["圣遗物"][pos]["主属性"]["属性名"] in prop_diff:
-            prop_diff[data["圣遗物"][pos]["主属性"]["属性名"]] -= data["圣遗物"][pos]["主属性"]["属性值"]
-        else:
-            element_before = data["圣遗物"][pos]["主属性"]["属性名"].replace("元素伤害加成", "")
-            prop_diff["元素伤害加成"] -= data["圣遗物"][pos]["主属性"]["属性值"]
-        for affix in data["圣遗物"][pos]["词条"]:
-            prop_diff[affix["属性名"]] -= affix["属性值"]
-        pos_artifact = artifact_list[pos]
-        best_grade_same_score = 0
-        best_grade_score = 0
-        for artifact in pos_artifact:
-            if occupy and artifact["角色"] not in ["", role_name]:
-                continue
-            best_grade_same = False
-            best_grade = False
-            data["圣遗物"][pos] = artifact
-            # effective, _ = get_effective(data)
-            affix_weight, point_mark, max_mark = get_miao_score(effective, role_info_json[role_name]["属性"])
-            artifact_score, grade, mark = get_artifact_score(
-                point_mark,
-                max_mark,
-                artifact,
-                role_info_json[role_name]["元素"],
-                pos,
-                role_name,
-            )
-            if grade >= best_grade_score or grade >= best_grade_same_score:
-                if grade >= best_grade_same_score and suit in artifact["所属套装"]:
-                    best_grade_same_score = grade
-                    best_grade_same = True
-                if grade >= best_grade_score:
-                    best_grade_score = grade
-                    best_grade = True
-            else:
-                continue
-
-            if best_grade_same:
-                artifact_best_same[pos] = copy.deepcopy(artifact)
-                artifact_best_same_score[pos] = grade
-            if best_grade:
-                artifact_best[pos] = copy.deepcopy(artifact)
-                artifact_best_score[pos] = grade
-    score_list = [0, 0, 0, 0, 0]
-    for i in range(5):
-        score_list[i] = sum(artifact_best_same_score) - artifact_best_same_score[i] + artifact_best_score[i]
-    best_idx = score_list.index(max(score_list))
-    for i in range(5):
-        data["圣遗物"][i] = artifact_best_same[i] if i != best_idx else artifact_best[i]
-        if not data["圣遗物"][i]:
+        result = recommendation.data
+        target_title = recommendation.title
+    else:
+        if score_combination is None:
             return None, None
-        if data["圣遗物"][i]["主属性"]["属性名"] in prop_diff:
-            prop_diff[data["圣遗物"][i]["主属性"]["属性名"]] += data["圣遗物"][i]["主属性"]["属性值"]
-        else:
-            element_after = data["圣遗物"][i]["主属性"]["属性名"].replace("元素伤害加成", "")
-            prop_diff["元素伤害加成"] += data["圣遗物"][i]["主属性"]["属性值"]
-        for affix in data["圣遗物"][i]["词条"]:
-            prop_diff[affix["属性名"]] += affix["属性值"]
-    ele_list = [
-        "火",
-        "雷",
-        "水",
-        "草",
-        "风",
-        "岩",
-        "冰",
-    ]
-    data["属性"]["额外生命"] += prop_diff["生命值"] + data["属性"]["基础生命"] * prop_diff["百分比生命值"] / 100
-    data["属性"]["额外生命"] = round(data["属性"]["额外生命"])
-    data["属性"]["额外攻击"] += prop_diff["攻击力"] + data["属性"]["基础攻击"] * prop_diff["百分比攻击力"] / 100
-    data["属性"]["额外攻击"] = round(data["属性"]["额外攻击"])
-    data["属性"]["额外防御"] += prop_diff["防御力"] + data["属性"]["基础防御"] * prop_diff["百分比防御力"] / 100
-    data["属性"]["额外防御"] = round(data["属性"]["额外防御"])
-    data["属性"]["暴击率"] += prop_diff["暴击率"] / 100
-    data["属性"]["暴击伤害"] += prop_diff["暴击伤害"] / 100
-    data["属性"]["元素精通"] += prop_diff["元素精通"]
-    data["属性"]["元素充能效率"] += prop_diff["元素充能效率"] / 100
-    data["属性"]["治疗加成"] += prop_diff["治疗加成"] / 100
+        result = apply_artifact_combination(data, score_combination)
 
-    data["属性"]["暴击率"] = max(0, data["属性"]["暴击率"])
-    data["属性"]["暴击伤害"] = max(0, data["属性"]["暴击伤害"])
-    data["属性"]["元素精通"] = max(0, data["属性"]["元素精通"])
-    data["属性"]["元素充能效率"] = max(0, data["属性"]["元素充能效率"])
-    data["属性"]["治疗加成"] = max(0, data["属性"]["治疗加成"])
-    if any([element_before, element_after]):
-        data["属性"]["伤害加成"][ele_list.index(element_before or element_after)] = prop_diff["元素伤害加成"] / 100
-    img, _ = await draw_role_card(uid, data, player_info, plugin_version, False, title)
-    return image_build(img=img, quality=100, mode="RGB"), None
+    img, _ = await draw_role_card(uid, result, player_info, plugin_version, False, title)
+    return image_build(img=img, quality=100, mode="RGB"), target_title

@@ -24,6 +24,7 @@ _STATIC_KEY_MAP = {
     "mastery": "元素精通",
     "recharge": "元素充能效率",
     "heal": "治疗加成",
+    "shield": "护盾强效",
     "phy": "物理伤害加成",
 }
 
@@ -37,6 +38,22 @@ def artifact_attributes(artifact: dict) -> Iterable[tuple[str, float]]:
             yield str(affix["属性名"]), float(affix.get("属性值", 0))
 
 
+def _static_two_piece_data(suit: str) -> dict:
+    rule = (_ARTIFACT_RULES.get(suit) or {}).get("2") or {}
+    return rule if rule.get("isStatic") else {}
+
+
+def static_two_piece_suits(attribute: str) -> set[str]:
+    return {
+        suit
+        for suit in _ARTIFACT_RULES
+        if any(
+            _STATIC_KEY_MAP.get(key) == attribute and value > 0
+            for key, value in (_static_two_piece_data(suit).get("data") or {}).items()
+        )
+    }
+
+
 def static_set_attributes(
     artifacts: Iterable[dict],
 ) -> Iterable[tuple[str, float]]:
@@ -48,9 +65,7 @@ def static_set_attributes(
     for suit, count in sets.items():
         if count < 2:
             continue
-        raw = (_ARTIFACT_RULES.get(suit) or {}).get("2") or {}
-        if not raw.get("isStatic"):
-            continue
+        raw = _static_two_piece_data(suit)
         for key, value in (raw.get("data") or {}).items():
             if key == "dmg" and raw.get("elem"):
                 yield f"{raw['elem']}元素伤害加成", float(value)
