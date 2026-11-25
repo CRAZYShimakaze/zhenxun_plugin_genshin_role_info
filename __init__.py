@@ -30,7 +30,7 @@ from zhenxun.services.log import logger
 from zhenxun.utils.enum import PluginType
 
 # 金币扣费装饰器已停用
-from ..plugin_utils.panel_ranks import get_panel_ranks
+from .utils.panel_ranks import get_panel_ranks
 from .battle_records import BATTLE_COMMAND_PATTERN, build_battle_report, parse_battle_command
 from .utils.download_utils import DownloadError
 from .data_source.damage import get_role_dmg
@@ -94,7 +94,7 @@ __plugin_meta__ = PluginMetadata(
     """.strip(),
     extra=PluginExtraData(
         author="CRAZYSHIMAKAZE",
-        version="4.3.18",
+        version="4.3.19",
         plugin_type=PluginType.NORMAL,
     ).to_dict(),
 )

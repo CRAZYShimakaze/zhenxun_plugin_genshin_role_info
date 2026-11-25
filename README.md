@@ -15,8 +15,6 @@ git clone https://github.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info.git
 
 更新时在 `genshin_role_info` 目录执行 `git pull --ff-only`。
 
-群内排名展示依赖同级 `plugin_utils/panel_ranks.py`，更新插件时需同步该共享模块。
-
 ## 使用
 
 - 原神绑定 UID（或绑定原神 UID；手动绑定 UID 须为 9 位且首位为 1-9）
@@ -91,6 +89,10 @@ git clone https://github.com/CRAZYShimakaze/zhenxun_plugin_genshin_role_info.git
 * [NoneBot Plugin GsPanel](https://github.com/monsterxcn/nonebot-plugin-gspanel)的评分计算
 
 ## 更新
+
+**2026/11/25**[v4.3.19]
+
+1. 群内排名逻辑移入插件，安装与更新无需额外共享模块
 
 **2026/11/25**[v4.3.18]
 
